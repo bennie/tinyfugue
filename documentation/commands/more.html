@@ -1,0 +1,50 @@
+<title>TinyFugue: /more</title>
+<!--"@scroll"-->
+<!--"@pager"-->
+<!--"@/more"-->
+<h1>/more</h1>
+
+<p>
+  Usage:
+
+<p>
+  <a href="../commands/more.html">/MORE</a> [OFF|ON]<br>
+<hr>
+
+<p>
+  Sets the value of the
+  <a href="../topics/special_variables.html#more">%{more}</a> flag.  If the
+  <a href="../topics/special_variables.html#more">%{more}</a> flag is ON when
+  the screen or output window fills up, output will stop, and a --More--
+  prompt will be displayed.  With the default keybindings, TAB will scroll
+  one screenfull, ^[h will scroll a Half screen, ^[l will scroll one Line,
+  and ^[j will Jump to the end of the text, skipping all text which has been
+  received but not yet displayed.
+
+<p>
+  In <a href="../topics/mode.html">visual mode</a>,
+  with the default setting of
+  <a href="../topics/special_variables.html#status_fields">status_fields</a>,
+  the number of pending lines is displayed with the More prompt.
+  If the number of pending lines is 10000 or more, no number will be
+  displayed and the prompt will just say "MuchMore".
+
+<p>
+  If your terminal can't scroll in
+  <a href="../topics/mode.html">visual mode</a>, TF will start over at the top
+  of the output window instead.
+
+<p>
+  See: <a href="../commands/dokey.html">/dokey</a>,
+  <a href="../topics/special_variables.html#more">%more</a>,
+  <a href="../topics/functions.html#morescroll">morescroll()</a>,
+  <a href="../topics/functions.html#moresize">moresize()</a>,
+  <a href="../topics/special_variables.html#status_fields">status_fields</a>
+
+<p>
+<!-- END -->
+<hr>
+  <a href="./">Back to index</a><br>
+  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+<hr>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>

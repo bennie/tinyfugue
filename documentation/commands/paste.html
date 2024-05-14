@@ -1,0 +1,52 @@
+<title>TinyFugue: /paste</title>
+<!--"@/endpaste"-->
+<!--"@/paste"-->
+<h1>/paste</h1>
+
+<p>
+  Usage:
+
+<p>
+  <a href="../commands/paste.html">/PASTE</a> [-p] [<i>prefix</i>]<br>
+  <a href="../commands/paste.html">/ENDPASTE</a><br>
+<hr>
+
+<p>
+  After executing <a href="../commands/paste.html">/paste</a>, every line of
+  input (including lines that begin with "/") will have <i>prefix</i>
+  prepended to it and then get executed
+  (without <a href="../topics/substitution.html">substitution</a>).
+  If <i>prefix</i> is omitted, it defaults to the value of %paste_prefix;
+  if %paste_prefix is empty or unset, it defaults to ":|".
+  Entering the line
+  "<a href="../commands/paste.html">/endpaste</a>" turns this off.
+  <a href="../commands/paste.html">/Paste</a> can be very useful when
+  using the cut-and-paste mechanism of many windowing systems.
+
+<p>
+  <a href="../topics/options.html">Options:</a>
+  <dl>
+  <dt>-p
+          <dd>"paragraph mode":  adjacent non-blank lines are joined,
+              and leading spaces are stripped (this is particularly useful
+              when pasting text cut from a web browser or a window of different
+              width).
+  </dl>
+
+<p>
+  Note that <a href="../commands/paste.html">/endpaste</a> is not actually
+  a command, but a "magic cookie" recognized by 
+  <a href="../commands/paste.html">/paste</a>.  
+  "<a href="../commands/paste.html">/Endpaste</a>" and SIGINT (ctrl-c)
+  are the only ways to end <a href="../commands/paste.html">/paste</a>.  
+
+<p>
+  See: <a href="../commands/quote.html">/quote</a>
+
+<p>
+<!-- END -->
+<hr>
+  <a href="./">Back to index</a><br>
+  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+<hr>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>

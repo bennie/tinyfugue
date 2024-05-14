@@ -1,0 +1,101 @@
+<title>TinyFugue: proxy server</title>
+<!--"@firewall"-->
+<!--"@proxy"-->
+<!--"@/proxy_command"-->
+<!--"@proxy server"-->
+<h1>proxy server</h1>
+
+<p>
+  If <a href="../topics/special_variables.html#proxy_host">%{proxy_host}</a>
+  is set, all connections will go through a proxy server (firewall) defined
+  by <a href="../topics/special_variables.html#proxy_host">%proxy_host</a> and
+  <a href="../topics/special_variables.html#proxy_port">%proxy_port</a>.
+
+<p>
+  When the connection to
+  <a href="../topics/special_variables.html#proxy_host">%proxy_host</a> 
+  <a href="../topics/special_variables.html#proxy_port">%proxy_port</a>
+  is made, only the PROXY
+  <a href="../topics/hooks.html">hook</a> is called; the CONNECT and LOGIN
+  <a href="../topics/hooks.html">hooks</a> which are normally called after
+  making a connection are not called when a proxy is used.
+  A PROXY <a href="../topics/hooks.html">hook</a> defined in the standard
+  library calls <a href="../topics/proxy.html">/proxy_command</a>, which by
+  default sends "<code>telnet
+  <a href="../topics/worlds.html#world_host">${world_host}</a>
+  <a href="../topics/worlds.html#world_port">${world_port}</a></code>", and
+  then calls the CONNECT and LOGIN <a href="../topics/hooks.html">hooks</a>.
+  If your proxy server requires a different command, you should
+  redefine <a href="../topics/proxy.html">/proxy_command</a>.
+
+<p>
+  Before the connection is made,
+  <a href="../topics/worlds.html#world_host">${world_host}</a>,
+  <a href="../topics/worlds.html#world_port">${world_port}</a>,
+  error messages, and <a href="../commands/listsockets.html">/listsockets</a>
+  refer to the proxy server; after the connection is made, they
+  refer to the server defined in
+  <a href="../commands/addworld.html">/addworld</a>.
+
+<p>
+  Note that tf has no way of knowing if the command sent to the proxy server
+  actually succeeded in opening a connection to the destination server; if
+  it failed, the default /proxy_command will happily call the LOGIN
+  <a href="../topics/hooks.html">hook</a> and send your login command
+  to the proxy server instead of the destination.
+  However, since the CONNECT and LOGIN <a href="../topics/hooks.html">hooks</a>
+  are called by /proxy_command, not tf, you can define your own /proxy_command
+  that waits for specific error and success messages sent by your particular
+  proxy server.
+<p>
+
+  For example, say you use a Gauntlet telnet proxy that
+  leaves localecho off;
+  prints a "tn-gw-&gt; " prompt;
+  requires you to send "telnet <i>hostname</i> <i>port</i>" to connect;
+  after a successful connection, prints "Connected to <i>hostname</i>";
+  and after a failed connection prints an error message and prints another
+  prompt.  For such a proxy server, you could use this /proxy_command:
+
+<pre>
+/def proxy_command =\
+    /def -p10000 -w -1 -h'PROMPT tn-gw-&gt;*' =\
+        telnet $${world_host} $${world_port}%%; \
+        /localecho on%%; \
+        /def -p10002 -w -1 -h'PROMPT tn-gw-&gt;*' proxy_error_$${world_name} =\
+            /undef proxy_success_$$${world_name}%%%;\
+            /dc%%;\
+        /def -p10002 -w -1 -t'Connected to *' proxy_success_$${world_name} =\
+            /undef proxy_error_$$${world_name}%%%;\
+            /trigger -hCONNECT $$${world_name}%%%;\
+            /if ($$${world_character} !~ "" &amp; $$${world_login}) \
+                /trigger -hLOGIN ${world_name}%%%;\
+            /endif
+</pre>
+
+  The first /def waits for the first prompt before doing anything.
+  It then
+  sends the connection command,
+  turns localecho back on,
+  and sets up macros to catch the results of the connection command.
+  The success trigger undefines the error hook,
+  and calls the CONNECT and LOGIN hooks.
+  The error hook undefines the success trigger and disconnects from the proxy.
+
+<p>
+  For systems that use SOCKS, tf should be compiled with the SOCKS option,
+  instead of using the method described here.  See the README file
+  for details.
+
+<p>
+  See: <a href="../commands/addworld.html">/addworld</a>,
+  <a href="../topics/special_variables.html#proxy_host">%proxy_host</a>,
+  <a href="../topics/special_variables.html#proxy_port">%proxy_port</a>
+
+<p>
+<!-- END -->
+<hr>
+  <a href="./">Back to index</a><br>
+  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+<hr>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>

@@ -1,0 +1,45 @@
+<title>TinyFugue: /send</title>
+<!--"@/send"-->
+<h1>/send</h1>
+
+<p>
+  Usage:
+
+<p>
+  <a href="../commands/send.html">/SEND</a> [-W] [-T<i>type</i>]
+  [-w[<i>world</i>]] [-n] <i>text</i><br>
+<hr>
+
+<p>
+  Sends <i>text</i> to a world.
+
+<p>
+  <a href="../topics/options.html">Options:</a>
+  <dl>
+  <dt>-w<i>world</i>	<dd>sends <i>text</i> to <i>world</i>.
+  <dt>-T<i>type</i>	<dd>sends <i>text</i> to all connected worlds
+			with a type that matches the pattern <i>type</i>.
+  <dt>-W		<dd>sends <i>text</i> to all connected worlds.
+  <dt>-n		<dd>send <i>text</i> without an end-of-line
+			marker (CR LF).
+  </dl>
+
+<p>
+  If none of the -w, -W, or -T options are given, <i>text</i> is sent
+  to the <a href="../topics/sockets.html#current">current</a> world.
+
+<p>
+  The <a href="../commands/send.html">/send</a> command never executes a SEND
+  <a href="../topics/hooks.html">hook</a>.
+
+<p>
+  See: 
+  <a href="../topics/functions.html#send">send()</a>.
+
+<p>
+<!-- END -->
+<hr>
+  <a href="./">Back to index</a><br>
+  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+<hr>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>

@@ -1,0 +1,90 @@
+<title>TinyFugue: locale</title>
+<!--"@8-bit"-->
+<!--"@international"-->
+<!--"@i18n"-->
+<!--"@internationalization"-->
+<!--"@internationalisation"-->
+<!--"@locale"-->
+<h1>locale</h1>
+
+<p>
+  A locale defines a set of rules for a language and culture.  If the
+  platform on which TF runs supports locales, TF will support the following
+  categories of locale rules:
+
+  <dl>
+  <dt>LC_CTYPE	<dd>determines what characters are allowed, and whether
+		they should be treated as letters, digits, puctuation, or
+		control characters.  When using a locale with an 8-bit
+		character set, make sure that TF's
+		<a href="../topics/special_variables.html#istrip">istrip</a>
+		variable is off.
+  <dt>LC_TIME	<dd>determines the names and formats used in displaying
+		dates and times with
+		<a href="../commands/time.html">/time</a>,
+		<a href="../commands/ftime.html">ftime()</a>, etc.
+  </dl>
+
+<p>
+  The user can set the locale either by having special variables defined in
+  the environment before starting TF (preferred), or by setting them
+  while TF is running (they will automatically be exported to the environment
+  even if <a href="../commands/set.html">/set</a> is used).
+  The exact rules for setting locale depend on the platform, and should be
+  found your system's documentation for setlocale().
+  The rules are usually something like this:
+
+  <ol>
+  <li>If the variable
+	<a href="../topics/special_variables.html#LC_ALL">LC_ALL</a> is set,
+	its value is used as the locale for all supported categories.
+  <li>Otherwise, if the variable with the name of a category is
+	set, its value is used as the locale for that category.
+  <li>Otherwise, if the variable
+	<a href="../topics/special_variables.html#LANG">LANG</a> is set,
+	its value is used as the locale for any supported categories
+	that were not covered by the first two rules.
+  <li>If none of those are set for a category, the default "C" locale is
+	used for that category, which allows the 7-bit ASCII character
+	set and US English date and time formats.
+  </ol>
+
+<p>
+  The valid values for the locale variables depend on your system.
+  On a POSIX system, the valid values can be listed with the shell command
+  "locale -a".
+
+<p>
+  Bugs:
+  <ul>
+  <li>LC_COLLATE and LC_MESSAGES categories are not supported.
+  <li>In glob and regexp <a href="../topics/patterns.html">patterns</a>,
+      there is no way to specify a range of all letters that works in
+      all locales.  E.g., "[A-Za-z]" works in the standard "C" locale,
+      but not necessarily in others.
+  <li>TF will convert character 0x80 to the character 0x00.  This is not
+      usually an issue, since character 0x80 is not a printable character in
+      the character sets of most locales (including all ISO character sets).
+  </ul>
+
+<p>
+  If your system has locale support, but does not have any locales installed,
+  you can get the POSIX 1003.2 WG15-collection locale definitions from
+  <a href="ftp://dkuug.dk/i18n/">ftp://dkuug.dk/i18n/</a> or
+  <a href="ftp://i44ftp.info.uni-karlsruhe.de/pub/linux/ctype/">ftp://i44ftp.info.uni-karlsruhe.de/pub/linux/ctype/</a>.
+
+<p>
+  Note to linux users and other users of GNU libc:
+  at least some versions of GNU localedef generate invalid LC_TIME
+  information from the WG15-collection sources, and the GNU libc causes
+  any program that tries to use the invalid LC_TIME information to crash.  
+  Workarounds:  delete the LC_TIME data; or, do not set any of the
+  LC_ALL, LC_TIME, or LANG variables.
+
+<p>
+<!-- END -->
+<hr>
+  <a href="./">Back to index</a><br>
+  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+<hr>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>

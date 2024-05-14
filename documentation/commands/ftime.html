@@ -1,0 +1,73 @@
+<title>TinyFugue: ftime()</title>
+<!--"@ftime"-->
+<!--"@ftime()"-->
+<h1>ftime()</h1>
+
+<p>
+  <a href="../topics/functions.html">Function</a> usage:
+
+<p>
+  <a href="../commands/ftime.html">ftime</a>(<i>format</i>, <i>time</i>)<br>
+<hr>
+
+<p>
+Returns a string formatted from a system time <i>time</i> (obtained from
+<a href="../topics/functions.html#time">time()</a>) according to
+<i>format</i>.
+If <i>format</i> is "@", a raw system time (e.g., seconds since 1970-01-01
+00:00:00 UTC) will be displayed.
+Otherwise, each "%" in <i>format</i> describes a conversion:
+<dl compact>
+<dt>%@	<dd>raw system time (nonstandard TF extension)
+<dt>%a	<dd>abbreviated weekday name
+<dt>%A	<dd>full weekday name
+<dt>%b	<dd>abbreviated month name
+<dt>%B	<dd>full month name
+<dt>%c	<dd><a href="../topics/locale.html">local</a> time and date
+        representation
+<dt>%d	<dd>day of month (01-31)
+<dt>%H	<dd>hour on 24-hour clock (00-23)
+<dt>%I	<dd>hour on 12-hour clock (01-12)
+<dt>%j	<dd>day of year (001-366)
+<dt>%m	<dd>month (01-12)
+<dt>%M	<dd>minute (00-59)
+<dt>%p	<dd><a href="../topics/locale.html">local</a> equivalent of "AM" or "PM"
+<dt>%S	<dd>second (00-61)
+<dt>%U	<dd>week number of year, Sunday is first day of week (00-53)
+<dt>%w	<dd>weekeday (0-6, Sunday is 0)
+<dt>%W	<dd>week number of year, Monday is first day of week (00-53)
+<dt>%x	<dd><a href="../topics/locale.html">local</a> date representation
+<dt>%X	<dd><a href="../topics/locale.html">local</a> time representation
+<dt>%y	<dd>year without century (00-99)
+<dt>%Y	<dd>year with century
+<dt>%Z	<dd>time zone name, if any
+<dt>%%	<dd>"%"
+</dl>
+Names and conversions labeled "local" may be affected by the
+setting of the LC_TIME <a href="../topics/locale.html">locale</a> category.
+Additional "%" conversions may be supported by your system; see your system's
+strftime() documentation for details.
+All other characters in <i>format</i> are copied unmodified to the result.
+
+<p>
+Example:<br>
+command: <a href="../commands/expr.html">/expr</a>
+<a href="../commands/ftime.html">ftime</a>("Today is %a %b %d",
+<a href="../topics/functions.html#time">time</a>())<br>
+output:  Today is Thu Jul 02<br>
+
+<p>
+  See:
+  <a href="../topics/functions.html">functions</a>,
+  <a href="../topics/functions.html#time">time()</a>,
+  <a href="../topics/locale.html">locale</a>,
+  <a href="../topics/special_variables.html#TZ">%TZ</a>.
+  <a href="../topics/special_variables.html#time_format">%time_format<a>
+
+<p>
+<!-- END -->
+<hr>
+  <a href="./">Back to index</a><br>
+  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+<hr>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1998 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>

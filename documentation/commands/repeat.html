@@ -1,0 +1,75 @@
+<title>TinyFugue: /repeat</title>
+<!--"@delay"-->
+<!--"@/repeat"-->
+<h1>/repeat</h1>
+
+<p>
+  Usage:
+
+<p>
+  <a href="../commands/repeat.html">/REPEAT</a> [-w[<i>world</i>]]
+  [-<i>time</i>] <i>count</i> <i>command</i><br>
+<hr>
+
+<p>
+  Repeats <i>command</i>, <i>count</i> times.  <i>Command</i> may be any
+  legal <a href="../topics/macros.html">macro</a> body.  This works through a
+  <a href="../topics/processes.html">process</a> i.e. it runs concurrently
+  with normal input and output.
+
+<p>
+  If <i>time</i> is specified in the format
+  "<i>hours</i>:<i>minutes</i>:<i>seconds</i>",
+  "<i>hours</i>:<i>minutes</i>", or "<i>seconds</i>",
+  it is used as the delay between each line.
+  If <i>time</i> is given as the letter "S", the repeat will run
+  synchronously (see "<a href="../topics/processes.html">processes</a>").
+  Otherwise, the delay between each line is determined by the
+  <a href="../topics/variables.html">variable</a>
+  <a href="../topics/special_variables.html#ptime">%{ptime}</a>.
+
+<p>
+  <i>Command</i> will execute with <i>world</i> as the
+  <a href="../topics/sockets.html#current">current</a> world.
+  If no <i>world</i> was specified, the
+  <a href="../topics/sockets.html#current">current</a> world will be
+  whatever world happens to be the
+  <a href="../topics/sockets.html#foreground">foreground</a> world when
+  it's time for the command to run.
+
+<p>
+  The <i>command</i> undergoes <a href="../topics/macros.html">macro</a> body
+  <a href="../topics/substitution.html">substitution</a> when it is executed.
+
+<p>
+  An asynchronous <a href="../commands/repeat.html">/repeat</a> returns the
+  pid of the new <a href="../topics/processes.html">process</a>, or 0
+  if an error occurred.  A synchronous
+  <a href="../commands/repeat.html">/repeat</a> returns the return value of
+  the last command.
+
+<p>
+  Since the first run is not done until after the first interval
+  (for an asynchrounous <a href="../commands/repeat.html">/repeat</a>),
+  a useful trick is to use
+  "<a href="../commands/repeat.html">/repeat</a> -<i>time</i> 1
+  <i>command</i>" to delay the execution of a single command.
+
+<p>
+  Example: Here's a technique to execute an infinite 30-minute repeat:
+<pre>
+    <a href="../commands/def.html">/def</a> doodle_forever = /doodle%; <a href="../commands/repeat.html">/repeat</a> -0:30 1 /doodle_forever
+</pre>
+
+<p>
+  See: <a href="../topics/processes.html">processes</a>,
+  <a href="../topics/special_variables.html#ptime">%ptime</a>,
+  <a href="../commands/at.html">/at</a>
+
+<p>
+<!-- END -->
+<hr>
+  <a href="./">Back to index</a><br>
+  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+<hr>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
