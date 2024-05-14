@@ -1,44 +1,45 @@
 /*************************************************************************
  *  TinyFugue - programmable mud client
- *  Copyright (C) 1996 - 1999 Ken Keys
+ *  Copyright (C) 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 Ken Keys
  *
  *  TinyFugue (aka "tf") is protected under the terms of the GNU
  *  General Public License.  See the file "COPYING" for details.
  ************************************************************************/
-/* $Id: hooklist.h,v 35000.6 1999/01/31 00:27:45 hawkeye Exp $ */
+/* $Id: hooklist.h,v 35000.24 2007/01/13 23:12:39 kkeys Exp $ */
 
-/* It may not be easy to read, but it keeps the constants and the array in the
- * same place, so they can't get out of sync.
+/* This keeps the constants and the array in the same place
+ * so they can't get out of sync.
  */
 
-bicode(H_ACTIVITY,   "ACTIVITY"),
-bicode(H_BACKGROUND, "BACKGROUND"),
-bicode(H_BAMF,       "BAMF"),
-bicode(H_CONFAIL,    "CONFAIL"),
-bicode(H_CONFLICT,   "CONFLICT"),
-bicode(H_CONNECT,    "CONNECT"),
-bicode(H_DISCONNECT, "DISCONNECT"),
-bicode(H_KILL,       "KILL"),
-bicode(H_LOAD,       "LOAD"),
-bicode(H_LOADFAIL,   "LOADFAIL"),
-bicode(H_LOG,        "LOG"),
-bicode(H_LOGIN,      "LOGIN"),
-bicode(H_MAIL,       "MAIL"),
-bicode(H_MORE,       "MORE"),
-bicode(H_NOMACRO,    "NOMACRO"),
-bicode(H_PENDING,    "PENDING"),
-bicode(H_PROCESS,    "PROCESS"),
-bicode(H_PROMPT,     "PROMPT"),
-bicode(H_PROXY,      "PROXY"),
-bicode(H_REDEF,      "REDEF"),
-bicode(H_RESIZE,     "RESIZE"),
-bicode(H_RESUME,     "RESUME"),
-bicode(H_SEND,       "SEND"),
-bicode(H_SHADOW,     "SHADOW"),
-bicode(H_SHELL,      "SHELL"),
-bicode(H_SIGHUP,     "SIGHUP"),
-bicode(H_SIGTERM,    "SIGTERM"),
-bicode(H_SIGUSR1,    "SIGUSR1"),
-bicode(H_SIGUSR2,    "SIGUSR2"),
-bicode(H_WORLD,      "WORLD"),
-bicode(NUM_HOOKS,    NULL)
+gencode(ACTIVITY,	HT_ALERT | HT_XSOCK),
+gencode(BAMF,		HT_WORLD | HT_XSOCK),
+gencode(BGTEXT,		0),
+gencode(BGTRIG,		HT_ALERT | HT_XSOCK),
+gencode(CONFAIL,	HT_WORLD | HT_XSOCK),
+gencode(CONFLICT,	0),
+gencode(CONNECT,	HT_WORLD | HT_XSOCK),
+gencode(DISCONNECT,	HT_WORLD | HT_XSOCK),
+gencode(ICONFAIL,	HT_WORLD | HT_XSOCK),
+gencode(KILL,		0),
+gencode(LOAD,		0),
+gencode(LOADFAIL,	0),
+gencode(LOG,		0),
+gencode(LOGIN,		0),
+gencode(MAIL,		HT_ALERT),
+gencode(MORE,		0),
+gencode(NOMACRO,	0),
+gencode(PENDING,	HT_WORLD | HT_XSOCK),
+gencode(PREACTIVITY,	0),
+gencode(PROCESS,	0),
+gencode(PROMPT,		0),
+gencode(PROXY,		0),
+gencode(REDEF,		0),
+gencode(RESIZE,		0),
+gencode(SEND,		0),
+gencode(SHADOW,		0),
+gencode(SHELL,		0),
+gencode(SIGHUP,		0),
+gencode(SIGTERM,	0),
+gencode(SIGUSR1,	0),
+gencode(SIGUSR2,	0),
+gencode(WORLD,		HT_WORLD),

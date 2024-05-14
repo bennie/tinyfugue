@@ -40,24 +40,29 @@
   fields associated with it:
   <dl>
   <dt>name	<dd>a label used to refer to the world
-  <dt>type	<dd>an optional string for matching /def -T
+  <dt>type	<dd>an optional string for matching
+		<a href="../commands/def.html#-T">/def -T</a>
   <dt>character	<dd>optional login name
   <dt>password	<dd>optional login password
-  <dt>host	<dd>server host address
-  <dt>port	<dd>server port number or name
+  <dt>host	<dd>server's internet host name, IPv4 address, or (if your
+		platform supports it) IPv6 address
+  <dt>port	<dd>server's TCP port number or name
   <dt>mfile	<dd>optional <a href="../topics/macros.html">macro</a> file
   <dt>login	<dd>"1" if <a href="../topics/login.html">automatic login</a>
 		is enabled for the world's
 		<a href="../topics/sockets.html">socket</a>, "0" otherwise.
   <dt>proxy	<dd>"1" if this world's
 		<a href="../topics/sockets.html">socket</a> is using a
-		<a href="../topics/proxy.html">proxy</a>, "0" otherwise.
+		<a href="../topics/proxy.html">proxy</a>, "0" otherwise
+  <dt>src	<dd>optional name or address used for client (tf) end of
+		connection.
+  <dt>cipher	<dd>current cipher used by SSL connection to world.
   </dl>
 
 <p>
   The character name, password, and type are used by
   <a href="../topics/login.html">automatic login</a>, if the
-  <a href="../topics/special_variables.html#login">%{login}</a> flag is on.
+  <a href="../topics/special_variables.html#%login">%{login}</a> flag is on.
 
 <p>
   The <a href="../topics/macros.html">macro</a> file is
@@ -65,7 +70,7 @@
   <a href="../topics/sockets.html">socket</a> is opened to the world.  It can
   contain any commands you want executed automatically when you connect to
   that world.  If the flag
-  <a href="../topics/special_variables.html#sockmload">%{sockmload}</a> is
+  <a href="../topics/special_variables.html#%sockmload">%{sockmload}</a> is
   on, this file will also be <a href="../commands/load.html">loaded</a>
   whenever you switch to a world with the
   SOCKETB and SOCKETF keys (see <a href="../topics/sockets.html">sockets</a>,
@@ -107,6 +112,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

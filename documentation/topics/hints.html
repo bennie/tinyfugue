@@ -62,7 +62,7 @@
   Complicated <a href="../topics/macros.html">macros</a> are much easier to
   read if you include a short comment describing the arguments to the
   <a href="../topics/macros.html">macro</a> and what it does.  Lines
-  beginning with ';' are comments, and are ignored during
+  beginning with ';' or '#' are comments, and are ignored during
   <a href="../commands/load.html">/load</a>.
 
 <p>
@@ -76,7 +76,7 @@
   duplicated.  But if they are named, old copies of
   <a href="../topics/macros.html">macros</a> will be replaced with new copies
   of <a href="../topics/macros.html">macros</a> with the same name.  Naming
-  <a href="../topics/macros.html">macros</a> also makes it easier to
+  <a href="../topics/macros.html">macros</a> also makes them easier to
   manipulate with commands like
   <a href="../commands/list.html">/list</a> and
   <a href="../commands/undef.html">/undef</a>.
@@ -118,27 +118,49 @@
   reference you can avoid this problem;
   for example, "<code><a href="../commands/test.html">/test</a> {1}</code>".
 
-<p>
-  <li> Debugging:
+<p><li>
   "<a href="../commands/set.html">/set</a>
-  <a href="../topics/special_variables.html#pedantic">pedantic</a>=on" to
+  <a href="../topics/special_variables.html#%pedantic">pedantic</a>=on" to
   make tf generate warnings about some potential problems.
+
+<p><li>
   "<a href="../commands/set.html">/set</a>
-  <a href="../topics/special_variables.html#mecho">mecho</a>=on" to
+  <a href="../topics/special_variables.html#%defcompile">defcompile</a>=on" to
+  see syntax errors in a <a href="../topics/macros.html">macro</a>
+  when you define it, instead of waiting until you first run it.
+
+<p><li>
+  "<a href="../commands/set.html">/set</a>
+  <a href="../topics/special_variables.html#%mecho">mecho</a>=on" to
   see what commands are being executed, or
-  "<a href="../commands/connect.html">/connect</a> localhost echo"
+  <a href="../commands/connect.html">/connect</a> to a
+  normal or <a href="../topics/sockets.html#connectionless">connectionless</a>
+  <a href="../topics/sockets.html">socket</a>
+  defined with
+  "<code><a href="../commands/addworld.html">/addworld</a> -e</code>"
   to see what you're sending to the
   <a href="../topics/sockets.html">socket</a>.
+
+<p><li>
   "<a href="../commands/set.html">/set</a>
-  <a href="../topics/special_variables.html#emulation">emulation</a>=debug"
-  and "<a href="../topics/special_variables.html#telopt">telopt</a>=on"
+  <a href="../topics/special_variables.html#%emulation">emulation</a>=debug"
+  and "<a href="../topics/special_variables.html#%telopt">telopt</a>=on"
   to see exactly what the socket is sending to tf.
+
+<p><li>
+  Use the -n or -l option of <a href="../commands/trigger.html">/trigger</a>
+  to see a list of <a href="../topics/triggers.html">trigger</a>
+  <a href="../topics/macros.html">macros</a> that would match a given line.
+
   </ul>
+
+<p>
+  See also <a href="../topics/debugging.html">debugging</a>.
 
 <p>
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

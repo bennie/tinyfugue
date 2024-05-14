@@ -35,7 +35,7 @@
           "<a href="../topics/patterns.html#regexp">regexp</a>"
           (see also: <a href="../topics/patterns.html">patterns</a>).  If
           omitted, the value of
-          <a href="../topics/special_variables.html#matching">%{matching}</a>
+          <a href="../topics/special_variables.html#%matching">%{matching}</a>
           ("<a href="../topics/patterns.html#glob">glob</a>"
           by default) is used, unless <a href="../commands/def.html#-P">-P</a>
           is also given, in which case
@@ -69,14 +69,37 @@
           and its body will not be executed.
           If the value of <i>expression</i> is non-zero, the comparison
           proceedes as usual.
-          Note that
-          <a href="../topics/substitution.html#%n">positional parameters</a>
-          (<a href="../topics/substitution.html#%n">%n</a>) and
-          <a href="../topics/substitution.html#%Pn">subexpression matches</a>
-          (<a href="../topics/substitution.html#%Pn">%Pn</a>)
-          are not available in <i>expression</i>.
+          Note:
+          <br>*
+	    <a href="../topics/substitution.html#%n">positional parameters</a>
+            (<a href="../topics/substitution.html#%n">%n</a>) and
+            <a href="../topics/substitution.html#%Pn">subexpression matches</a>
+            (<a href="../topics/substitution.html#%Pn">%Pn</a>)
+            are not available in <i>expression</i>.
+          <br>*
+	    Remember that for every macro with a trigger and an -E expression,
+	    its <i>expression</i> must be evaluated for every line received.
+	    So, you should keep it simple (e.g., "<code>enable_foo</code>"
+	    or
+	    "<code><a href="../topics/worlds.html#fields">${world_name}</a> =~
+	    <a href="../topics/functions.html#fg_wold">fg_world</a>()</code>").
+	    More complex expressions should be put in the body of the macro.
+          <br>*
+	    The body of a high <a href="../topics/priority.html">priority</a>
+            <a href="../topics/macros.html">macro</a> is not necessarily
+	    executed before the -E expression of a lower
+	    <a href="../topics/priority.html">priority</a>
+            <a href="../topics/macros.html">macro</a> is tested,
+	    so <i>expression</i> should not rely on values that may be
+	    changed by other macros that match the same
+            <a href="../topics/triggers.html">trigger</a> or
+            <a href="../topics/hooks.html">hook</a>.
+	  <br>
           Default: no <a href="../topics/expressions.html">expression</a>
-          (i.e., always match if the trigger or hook matches).
+          (i.e., always match if the
+          <a href="../topics/triggers.html">trigger</a> or
+          <a href="../topics/hooks.html">hook</a> matches).
+          See: <a href="../topics/expressions.html">expressions</a>.
 
 <p>
 <a name="/def -t"></a>
@@ -92,8 +115,9 @@
           The <a href="../topics/patterns.html">pattern</a> matching style
           is determined by the <a href="../commands/def.html#-m">-m</a> option,
           or defaults to the value of
-          <a href="../topics/special_variables.html#matching">%{matching}</a>.
+          <a href="../topics/special_variables.html#%matching">%{matching}</a>.
           Default: no <a href="../topics/triggers.html">trigger</a>.
+          See: <a href="../topics/triggers.html">triggers</a>.
 
 <p>
 <a name="/def -h"></a>
@@ -110,8 +134,9 @@
           The <a href="../topics/patterns.html">pattern</a> matching style
           is determined by the <a href="../commands/def.html#-m">-m</a> option,
           or defaults to the value of
-          <a href="../topics/special_variables.html#matching">%{matching}</a>.
+          <a href="../topics/special_variables.html#%matching">%{matching}</a>.
           Default: no <a href="../topics/hooks.html">hook</a>.
+          See: <a href="../topics/hooks.html">hooks</a>.
 
 <p>
 <a name="/def -b"></a>
@@ -121,16 +146,17 @@
           when the string <i>bind</i> is typed at the keyboard.  Default:
           no binding.  The <i>bind</i> string may contain the special codes
           described under "<a href="../commands/bind.html">bind</a>".
+          See: <a href="../topics/keybindings.html">keys</a>.
 
 <p>
 <a name="/def -B"></a>
 <a name="-B"></a>
   <dt>-B<i>keyname</i>
-          <dd> The <a href="../topics/macros.html">macro</a> will be called
-          when the key named <i>keyname</i> is typed at the keyboard.  Default:
-          no key.  The list of recognized <i>keyname</i>s and other details
-          are described under
-          "<a href="../topics/keybindings.html">keybindings</a>".
+          <dd> Deprecated.
+	  The <a href="../topics/macros.html">macro</a> will be called
+          when the key named <i>keyname</i> (according to the termcap database)
+	  is typed at the keyboard.  Default: none.
+          See "<a href="../topics/keybindings.html">keys</a>".
 
 <p>
 <a name="/def -p"></a>
@@ -139,8 +165,20 @@
           <dd> Sets the <a href="../topics/priority.html">priority</a> of the
           <a href="../topics/macros.html">macro</a>'s
           <a href="../topics/triggers.html">trigger</a> or
-          <a href="../topics/hooks.html">hook</a> to <i>pri</i>.  Default: 1.
+          <a href="../topics/hooks.html">hook</a> to <i>pri</i>.
+	  As in all <a href="../topics/options.html">numeric options</a>,
+          the argument to -p may be an
+	  <a href="../topics/expressions.html">expression</a>
+	  that has a numeric value.
+          E.g. "<code><a href="../commands/def.html">/def</a> -pmaxpri
+	  ...</code>" will set the macro's priority to the value of the
+	  variable <code>maxpri</code>.
+	  The <a href="../topics/expressions.html">expression</a> is evaluated
+	  only once, when the macro is defined.
+	  Default: 1.
           See also: <a href="../topics/priority.html">fall-thru</a>.
+          See: <a href="../topics/priority.html">priority</a>,
+          <a href="../commands/def.html#-F">/def -F</a>.
 
 <p>
 <a name="/def -c"></a>
@@ -173,7 +211,7 @@
           The <a href="../topics/patterns.html">pattern</a> matching style
           is determined by the <a href="../commands/def.html#-m">-m</a> option,
           or defaults to the value of
-          <a href="../topics/special_variables.html#matching">%{matching}</a>.
+          <a href="../topics/special_variables.html#%matching">%{matching}</a>.
           Default: any type.
 
 <p>
@@ -184,40 +222,65 @@
           <a href="../topics/triggers.html">trigger</a> or
           <a href="../topics/hooks.html">hook</a>, allows additional matches
           of lower <a href="../topics/priority.html">priority</a> to be run.
-          Default: not <a href="../topics/priority.html">fall-thru</a>.  See:
-          <a href="../topics/priority.html">priority</a>
+          Default: not <a href="../topics/priority.html">fall-thru</a>.
+	  See: <a href="../topics/priority.html">priority</a>
 
 <p>
 <a name="/def -a"></a>
 <a name="-a"></a>
-  <dt>-a[ngGurfdBbhC]
+  <dt>-a[ngGLAur<!--fd-->BbhC]
           <dd> Set <a href="../topics/attributes.html">attribute</a>(s)
-          (normal, <a href="../topics/attributes.html">gag</a>, norecord,
-          underline, reverse, flash, dim, bold, bell,
+          (normal, <a href="../topics/attributes.html">gag</a>, nohistory,
+          nolog, noactivity, underline, reverse,
+	  <!-- flash, dim, --> bold, bell,
           <a href="../topics/attributes.html">hilite</a>, Color) used to
           display text matched by the
           <a href="../topics/triggers.html">trigger</a> or to display the
           default message of a <a href="../topics/hooks.html">hook</a>.
           Default: normal.
-          See "<a href="../topics/attributes.html">attributes</a>".
+          See: <a href="../topics/attributes.html">attributes</a>.
 
 <p>
 <a name="/def -P"></a>
 <a name="-P"></a>
-  <dt>-P[<i>n</i>][nurfdBhC]
-          <dd> "Partial <a href="../topics/attributes.html">hilite</a>": Set
-          <a href="../topics/attributes.html">attribute</a>(s) used to
-          display text matched by the <i>n</i>th parenthesized subexpression
-          in a <a href="../topics/patterns.html#regexp">regexp</a>
-          <a href="../topics/triggers.html">trigger</a>.  If
-          <i>n</i> is omitted it defaults to 0, i.e. the text matched by the
-          entire <a href="../topics/patterns.html#regexp">regexp</a>.
-          If there are multiple matches in the text, the
-          <a href="../topics/attributes.html">attributes</a> will be applied
-          to all of them.
+  <dt>-P[<i>part</i>]<i>attr</i>[;[<i>part</i>]<i>attr</i>]...
+          <dd>Define a "partial
+	  <a href="../topics/attributes.html">hilite</a>".
+	  The argument consists of a list of pairs of parts
+	  (<i>part</i>) and attributes (<i>attr</i>),
+	  separated by ';'.
+	  When a line matches the
+	  <a href="../topics/patterns.html#regexp">regexp</a>
+          <a href="../topics/triggers.html">trigger</a> of this macro,
+	  each <i>attr</i> is applied to the corresponding <i>part</i>
+	  of the line.
+          <i>Attr</i> can contain any of the
+	  <a href="../topics/attributes.html">attribute</a> codes
+	  "nxur<!--fd-->BhC".
+          (normal, exclusive, underline, reverse, <!-- flash, dim, --> bold,
+          <a href="../topics/attributes.html">hilite</a>, Color).
+	  The value of <i>part</i> determines which part of the text
+	  is affected:
+	  <dl compact>
+	  <dt>L<dd>text to the left of the
+	      <a href="../topics/patterns.html#regexp">regexp</a> match
+	  <dt>R<dd>text to the right of the
+	      <a href="../topics/patterns.html#regexp">regexp</a> match
+	  <dt>0<dd>text matched by the entire
+	      <a href="../topics/patterns.html#regexp">regexp</a>
+	  <dt><i>number</i><dd>text matched by the
+	      the <i>number</i>th parenthesized subexpression of the
+	      <a href="../topics/patterns.html#regexp">regexp</a>.
+	  </dl>
+	  
+          If <i>part</i> is omitted it defaults to 0.
+          If <i>part</i> is a number and
+	  there are multiple matches in the text, the
+          <i>attr</i> will be applied
+          to all of the matches.
           Implies <a href="../commands/def.html#-m">-m</a>regexp.
           Only one <a href="../commands/def.html#-P">-P</a> option is allowed.
-          See "<a href="../topics/attributes.html">attributes</a>".
+          See: <a href="../topics/attributes.html">attributes</a>.
 
 <p>
 <a name="/def -f"></a>
@@ -391,6 +454,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

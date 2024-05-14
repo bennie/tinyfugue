@@ -15,8 +15,8 @@
   Command usage:
 
 <p>
-  <a href="../commands/echo.html">/ECHO</a> [-p] [-a<i>attrs</i>]
-  [-e] [-w[<i>world</i>]] <i>text</i><br>
+  <a href="../commands/echo.html">/ECHO</a> [-peA] [-a<i>attrs</i>]
+  [-w[<i>world</i>]] <i>text</i><br>
   <a href="../commands/echo.html">/_ECHO</a> <i>text</i><br>
 <hr>
 
@@ -34,10 +34,12 @@
 	<i>attrs</i>.
   <dt>command: <code>-p</code>
   <dt>function: <i>inline</i> = <code>"on"</code> or <code>1</code>
-	<dd>Interpet <code>@{<i>attr</i>}</code> strings as commands to
+	<dd>Interpet "<code>@{<i>attr</i>}</code>" strings as commands to
         set <a href="../topics/attributes.html">attributes</a> inline.
-        "@@" strings are interpreted as "@".  "@{n}" or "@{x}" will
+        "<code>@@</code>" strings are interpreted as "<code>@</code>".
+	"<code>@{n}</code>" or "<code>@{x}</code>" will
         turn attributes off.
+	See also: <a href="../topics/functions.html#decode_attr">decode_attr()</a>.
   <dt>command: <code>-w<i>world</i></code>
   <dt>function: <i>dest</i> = <code>"w<i>world</i>"</code>
 	<dd>Echo <i>text</i> to the <i>world</i>
@@ -55,6 +57,12 @@
   <dt>function: <i>dest</i> = <code>"o"</code>
 	<dd>Echo <i>text</i> to the
 	<a href="../topics/tfio.html">tfout stream</a> (the default).
+  <dt>command: <code>-A</code>
+  <dt>function: <i>dest</i> = <code>"a"</code>
+	<dd>Echo <i>text</i> to the
+	<a href="../topics/tfio.html">alert stream</a>, instead of the default
+	<a href="../topics/tfio.html">tfout stream</a>
+	(see <a href="../topics/tfio.html">tfio</a>).
   </dl>
 
 <p>
@@ -71,15 +79,20 @@
   <a href="../commands/echo.html">/echo</a>.
 
 <p>
+  When echoing to the <a href="../topics/tfio.html">tferr stream</a>,
+  if no <i>attrs</i> are specified, text will be echoed with the "E"
+  <a href="../topics/attributes.html">attribute</a>.
+
+<p>
   Example:
   Both of these commands
 <pre>
-  <a href="../commands/test.html">/test</a> <a href="../commands/echo.html">echo</a>("@{u}Hello@{n}, world!", "B", 1)
-  <a href="../commands/echo.html">/echo</a> -aB -p @{u}Hello@{n}, world!
+  <a href="../commands/test.html">/test</a> <a href="../commands/echo.html">echo</a>("@{u}Hello@{n}, world!", "BCred", 1)
+  <a href="../commands/echo.html">/echo</a> -aBCred -p @{u}Hello@{n}, world!
 </pre>
-  echo the following line, with "Hello" underlined, and the whole line bold:
+  echo the following line, with "Hello" underlined, and the whole line bold red:
 <pre>
-  <b><u>Hello</u>, world!</b>
+  <span style="color: red"><b><u>Hello</u>, world!</b></span>
 </pre>
 
 <p>
@@ -98,6 +111,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

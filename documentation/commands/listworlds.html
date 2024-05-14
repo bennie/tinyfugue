@@ -7,7 +7,7 @@
 
 <p>
   <a href="../commands/listworlds.html">/LISTWORLDS</a> [-cus]
-  [-m<i>style</i>] [-T] [<i>name</i>]<br>
+  [-m<i>style</i>] [-S<i>field</i>] [-T<i>type</i>] [<i>name</i>]<br>
 <hr>
 
 <p>
@@ -19,9 +19,13 @@
   <dt>-m<i>style</i>	<dd>Use <i>style</i> for
 			<a href="../topics/patterns.html">pattern matching</a>
 			of <i>type</i> and <i>name</i> patterns.
-			(default: <a href="../topics/special_variables.html#matching">%{matching}</a>).
+			(default: <a href="../topics/special_variables.html#%matching">%{matching}</a>).
   <dt>-s		<dd>Display short format (world names only).
   <dt>-c		<dd>Display command format (including passwords).
+  <dt>-S<i>field</i>	<dd>Sort worlds by <i>field</i>.  <i>Field</i>
+  			may be "name" (the default), "type", "character",
+			"host", "port", or "-" (don't sort).
+			Only the first character is necessary.
   <dt>-u		<dd>Include unnamed temporary worlds in the listing.
   <dt>-T<i>type</i>	<dd>List only worlds with a type matching the
   			<a href="../topics/patterns.html">pattern</a>
@@ -45,6 +49,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

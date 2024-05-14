@@ -1,22 +1,19 @@
 /*************************************************************************
  *  TinyFugue - programmable mud client
- *  Copyright (C) 1993 - 1999 Ken Keys
+ *  Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 Ken Keys
  *
  *  TinyFugue (aka "tf") is protected under the terms of the GNU
  *  General Public License.  See the file "COPYING" for details.
  ************************************************************************/
-/* $Id: util.h,v 35004.26 1999/01/31 00:27:57 hawkeye Exp $ */
+/* $Id: util.h,v 35004.63 2007/01/13 23:12:39 kkeys Exp $ */
 
 #ifndef UTIL_H
 #define UTIL_H
 
-#include "regexp/regexp.h"
-
-typedef struct Pattern {
-    char *str;
-    regexp *re;
-    int mflag;
-} Pattern;
+struct feature {
+    const char *name;
+    const int *flag;
+};
 
 #undef CTRL
 /* convert to or from ctrl character */
@@ -29,27 +26,43 @@ typedef struct Pattern {
 /* Map character into set allowed by locale */
 #define localize(c)  ((is_print(c) || is_cntrl(c)) ? (c) : (c) & 0x7F)
 
-/* Modulo arithmetic: remainder is positive, even if numerator is negative. */
-#define nmod(n, d)   (((n) >= 0) ? ((n)%(d)) : ((d) - ((-(n)-1)%(d)) - 1))
-#define ndiv(n, d)   (((n) >= 0) ? ((n)/(d)) : (-((-(n)-1)/(d))-1))
-
 /* Note STRNDUP works only if src[len] == '\0', ie. len == strlen(src) */
 #define STRNDUP(src, len) \
-    (strcpy(xmalloc((len) + 1, __FILE__, __LINE__), (src)))
+    (strcpy(xmalloc(NULL, (len) + 1, __FILE__, __LINE__), (src)))
 #define STRDUP(src)  STRNDUP((src), strlen(src))
 
 
-#define IS_QUOTE	0001
-#define IS_STATMETA	0002
-#define IS_STATEND	0004
-#define IS_KEYSTART	0010
-#define IS_UNARY	0020
-#define IS_MULT		0040
-#define IS_ADDITIVE	0100
+#define IS_QUOTE	0x01
+#define IS_STATMETA	0x02
+#define IS_STATEND	0x04
+#define IS_KEYSTART	0x08
+#define IS_UNARY	0x10
+#define IS_MULT		0x20
+#define IS_ADDITIVE	0x40
+#define IS_ASSIGNPFX	0x80
 
-extern TIME_T mail_update;
+extern const struct timeval tvzero;
+extern struct timeval mail_update;
 extern int mail_count;
+extern struct mail_info_s *maillist;
 extern char tf_ctype[];
+extern Stringp featurestr;
+extern struct feature features[];
+
+extern const int feature_256colors;
+extern const int feature_core;
+extern const int feature_float;
+extern const int feature_ftime;
+extern const int feature_history;
+extern const int feature_IPv6;
+extern const int feature_locale;
+extern const int feature_MCCPv1;
+extern const int feature_MCCPv2;
+extern const int feature_process;
+extern const int feature_SOCKS;
+extern const int feature_ssl;
+extern const int feature_subsecond;
+extern const int feature_TZ;
 
 #define is_quote(c)	(tf_ctype[(unsigned char)c] & IS_QUOTE)
 #define is_statmeta(c)	(tf_ctype[(unsigned char)c] & IS_STATMETA)
@@ -58,63 +71,63 @@ extern char tf_ctype[];
 #define is_unary(c)	(tf_ctype[(unsigned char)c] & IS_UNARY)
 #define is_mult(c)	(tf_ctype[(unsigned char)c] & IS_MULT)
 #define is_additive(c)	(tf_ctype[(unsigned char)c] & IS_ADDITIVE)
+#define is_assignpfx(c)	(tf_ctype[(unsigned char)c] & IS_ASSIGNPFX)
 
-#ifdef HAVE_gettimeofday
+#define tvcmp(a, b) \
+   (((a)->tv_sec != (b)->tv_sec) ? \
+       ((a)->tv_sec - (b)->tv_sec) : \
+       ((a)->tv_usec - (b)->tv_usec))
+
+#if HAVE_GETTIMEOFDAY
 # define gettime(p)	(gettimeofday(p, NULL))
 #else
 # define gettime(p)	((p)->tv_usec = 0, time(&(p)->tv_sec))
 #endif
 
-#ifdef HAVE_strtol
-# define strtochr(sp)   ((char)(strtol(*(sp), (char **)sp, 0) % 0x100))
-# define strtoint(sp)   ((int)strtol(*(sp), (char **)sp, 10))
-# define strtolong(sp)  (strtol(*(sp), (char **)sp, 10))
-#else
-extern char   FDECL(strtochr,(char **sp));
-extern int    FDECL(strtoint,(char **sp));
-extern long   FDECL(strtolong,(char **sp));
-#endif
-extern int    FDECL(enum2int,(CONST char *str, CONST char **vec, CONST char *msg));
-extern void   NDECL(init_util1);
-extern void   NDECL(init_util2);
-extern char  *FDECL(print_to_ascii,(CONST char *str));
-extern char  *FDECL(ascii_to_print,(CONST char *str));
-extern char  *FDECL(cstrchr,(CONST char *s, int c));
-extern char  *FDECL(estrchr,(CONST char *s, int c, int e));
-extern int    FDECL(numarg,(char **str));
-extern char  *FDECL(stringarg,(char **str, CONST char **end));
-extern int    FDECL(stringliteral,(struct String *dest, char **str));
-extern void   FDECL(restore_reg_scope,(void *old));
-extern int    FDECL(regexec_in_scope,(regexp *re, CONST char *str));
-extern void  *FDECL(new_reg_scope,(regexp *re, CONST char *str));
-extern int    FDECL(regsubstr,(struct String *dest, int n));
-extern int    FDECL(init_pattern,(Pattern *pat, CONST char *str, int mflag));
-extern int    FDECL(init_pattern_str,(Pattern *pat, CONST char *str));
-extern int    FDECL(init_pattern_mflag,(Pattern *pat, int mflag));
-#define copy_pattern(dst, src)  (init_pattern(dst, (src)->str, (src)->mflag))
-extern int    FDECL(patmatch,(CONST Pattern *pat, CONST char *str));
-extern void   FDECL(free_pattern,(Pattern *pat));
-extern int    FDECL(smatch,(CONST char *pat, CONST char *str));
-extern int    FDECL(smatch_check,(CONST char *s));
-extern char  *FDECL(stripstr,(char *s));
-extern void   FDECL(startopt,(CONST char *args, CONST char *opts));
-extern char   FDECL(nextopt,(char **arg, long *num));
-#ifdef HAVE_tzset
-extern int    NDECL(ch_timezone);
+#define strtochr(s, ep)   ((char)(strtol((s), (char**)ep, 0) % 0x100))
+#define strtoint(s, ep)   ((int)strtol((s), (char**)ep, 10))
+#define strtolong(s, ep)  (strtol((s), (char**)ep, 10))
+extern int    enum2int(const char *str, long val, conString *vec, const char *msg);
+extern void   init_util1(void);
+extern void   init_util2(void);
+extern const conString* print_to_ascii(String *buf, const char *str);
+extern const conString* ascii_to_print(const char *str);
+extern char  *cstrchr(const char *s, int c);
+extern char  *estrchr(const char *s, int c, int e);
+extern int    numarg(const char **str);
+extern int    nullstrcmp(const char *s, const char *t);
+extern int    nullcstrcmp(const char *s, const char *t);
+extern int    cstrncmp(const char *s, const char *t, size_t n);
+extern char  *stringarg(char **str, const char **end);
+extern int    stringliteral(struct String *dest, const char **str);
+extern char  *stripstr(char *s);
+extern void   startopt(const conString *args, const char *opts);
+extern char   nextopt(const char **arg, ValueUnion *u, int *type, int *offp);
+#if HAVE_TZSET
+extern int    ch_timezone(Var *var);
 #else
 # define ch_timezone NULL
 #endif
-extern int    NDECL(ch_locale);
-extern int    NDECL(ch_mailfile);
-extern int    NDECL(ch_maildelay);
-extern void   NDECL(check_mail);
-extern long   FDECL(parsetime,(char **strp, int *istime));
-extern TIME_T FDECL(abstime,(long hms));
-extern int    FDECL(tftime,(String *dest, CONST char *fmt, long sec,long usec));
-extern void   FDECL(internal_error,(CONST char *file, int line));
-extern void   FDECL(die,(CONST char *why, int err)) NORET;
-#ifdef DMALLOC
-extern void   NDECL(free_util);
+extern int    ch_locale(Var *var);
+extern int    ch_mailfile(Var *var);
+extern int    ch_maildelay(Var *var);
+extern void   check_mail(void);
+
+extern type_t string_arithmetic_type(const char *str, int typeset);
+extern Value *parsenumber(const char *str, const char **caller_endp,
+		int typeset, Value *val);
+extern long   parsetime(const char *str, char **endp, int *istime);
+extern void   abstime(struct timeval *tv);
+extern void   append_usec(String *buf, long usec, int truncflag);
+extern void   tftime(String *buf, const conString *fmt,
+		const struct timeval *tv);
+extern void   tvsub(struct timeval *a, const struct timeval *b,
+		const struct timeval *c);
+extern void   tvadd(struct timeval *a, const struct timeval *b,
+		const struct timeval *c);
+extern void   die(const char *why, int err) NORET;
+#if USE_DMALLOC
+extern void   free_util(void);
 #endif
 
 #endif /* UTIL_H */

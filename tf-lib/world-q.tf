@@ -12,22 +12,31 @@
 
 /loaded __TFLIB__/world-q.tf
 
-/require stack-q.tf
-/require lisp.tf
+/require -q stack-q.tf
+/require -q lisp.tf
+/require -q textencode.tf
 
 /if (active_worlds =~ "") /set active_worlds=%; /endif
 
 /def -ib'^[w' = /to_active_or_prev_world
 
-/def -iFp1 -h"ACTIVITY" activity_queue_hook = \
-    /enqueue %1 active_worlds
+; Use %1 instead of $world_name so this can be called by name
+/def -iFp1 -h"BGTEXT" activity_queue_hook = \
+;   world may already be in active_worlds because of scrollback, etc
+    /if /test moresize("", {1}) > 0 & active_worlds !/ "*{%1}*"%; /then \
+	/enqueue %1 active_worlds%; \
+    /endif
 
 ; don't queue world "rwho".
-/def -ip2 -msimple -h"ACTIVITY rwho" activity_rwho_hook
+/def -ip2 -msimple -h"BGTEXT rwho" activity_rwho_hook
 
 /def -iFp1 -h"WORLD" prev_world_hook =\
     /if (fg_world !~ "") \
-        /set prev_worlds=%fg_world $(/remove %fg_world %prev_worlds)%;\
+        /if (moresize("", fg_world)) \
+            /set active_worlds=%{active_worlds} %{fg_world}%; \
+        /else \
+            /set prev_worlds=%fg_world $(/remove %fg_world %prev_worlds)%;\
+        /endif%; \
     /endif%;\
     /set fg_world=${world_name}%;\
     /if (fg_world !~ "") \

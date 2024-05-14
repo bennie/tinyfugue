@@ -6,27 +6,36 @@
   Usage: 
 
 <p>
-  <a href="../commands/load.html">/REQUIRE</a> at.tf<br>
-
-<p>
-  <a href="../commands/at.html">/AT</a> <i>when</i> <i>commands</i><br>
+  <a href="../commands/at.html">/AT</a> [-v] [<i>date</i>] <i>time</i> <i>commands</i><br>
 <hr>
 
 <p>
-  <i>Commands</i> will be executed at time-of-day <i>when</i>,
-  which must be of the form "<i>hours</i>:<i>minutes</i>" or
-  "<i>hours</i>:<i>minutes</i>:<i>seconds</i>"
-  (<i>hours</i> is between 0 and 23).
-  If <i>when</i> is less than equal to the current time of day, it is
-  interpreted as that time tomorrow.
-  The "equal" condition makes it possible for /at to call /at again with
-  the same <i>when</i> argument, and have it execute tomorrow instead of
-  immediately.
+  <i>Commands</i> will be executed at <i>date</i> and <i>time</i>.
+  <i>Date</i> must be of the form "<i>year</i>-<i>month</i>-<i>day</i>"
+  or "<i>month</i>-<i>day</i>", where <i>year</i> may be 2 or 4 digits.
+  <i>Time</i> must be of the form "<i>hours</i>:<i>minutes</i>" or
+  "<i>hours</i>:<i>minutes</i>:<i>seconds</i>",
+  where <i>hours</i> is between 0 and 23, and <i>seconds</i> may be specified
+  to the nearest microsecond.
+  If any part of the date is omitted, it defaults to the nearest value
+  for which <i>date</i> and <i>time</i> are in the future.
+  For example, if the current time is 16:00, then an argument of
+  "15:00" means 15:00 tomorrow, and "17:00" means 17:00 today.
 
 <p>
-  Example: <code><a href="../commands/at.html">/at</a> 23:30 
-  <a href="../commands/echo.html">/echo</a> Stop mudding, it's time for 
-  Letterman!</code>
+  <a href="../topics/options.html">Options</a>:
+  <dl>
+  <dt>-v    <dd>verbose: prints full date and time
+  </dl>
+
+<p>
+  Examples: <br>
+  <code><a href="../commands/at.html">/at</a> 04-01 00:00:00
+    <a href="../commands/echo.html">/echo</a> Happy April Fools Day!</code><br>
+  <code><a href="../commands/def.html">/def</a> lunch_reminder =
+    <a href="../commands/at.html">/at</a> 12:00
+    <a href="../commands/echo.html">/echo</a> Lunchtime!%%;
+    /lunch_reminder</code><br>
 
 <p>
   See: <a href="../topics/processes.html">processes</a>, 
@@ -37,6 +46,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

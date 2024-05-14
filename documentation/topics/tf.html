@@ -30,7 +30,7 @@
       (see <a href="../topics/tfrc.html">tfrc</a>).
   <li>Executes <i>command</i>, if one was given.
   <li>Enables <a href="../topics/mode.html">visual mode</a> if -v was not
-      given and <a href="../topics/special_variables.html#visual">%visual</a>
+      given and <a href="../topics/special_variables.html#%visual">%visual</a>
       has not been explicitly set to "off".
   <li>Tries to connect to <i>world</i>, or <i>host</i> <i>port</i>.  If no
       <a href="../topics/worlds.html">world</a>
@@ -44,11 +44,11 @@
   </ol>
 
 <p>
-  <a href="../topics/options.html">Options:</a>
+  Options:
   <dl compact>
   <dt>-L<i>dir</i>
           <dd>Use <i>dir</i> instead of
-          <a href="../topics/special_variables.html#TFLIBDIR">%TFLIBDIR</a>
+          <a href="../topics/special_variables.html#%TFLIBDIR">%TFLIBDIR</a>
           as library directory.
   <dt>-f<i>file</i>
           <dd>Load <i>file</i> instead of the normal personal config file.
@@ -58,7 +58,7 @@
           <dd>Execute <i>command</i> after loading config file.
           <i>Command</i> is treated as if it had been typed on the tf command
           line (i.e., the value of 
-          <a href="../topics/special_variables.html#sub">%sub</a> is
+          <a href="../topics/special_variables.html#%sub">%sub</a> is
           significant).
   <dt>-n
           <dd> Do not connect to a <a href="../topics/worlds.html">world</a>
@@ -70,8 +70,8 @@
           (see: <a href="../topics/login.html">login</a>)
   <dt>-q
           <dd> Enable
-          <a href="../topics/special_variables.html#quiet">quiet login</a>.
-          (see: <a href="../topics/special_variables.html#quiet">%quiet</a>)
+          <a href="../topics/special_variables.html#%quiet">quiet login</a>.
+          (see: <a href="../topics/special_variables.html#%quiet">%quiet</a>)
   <dt>-v
           <dd> Disable automatic switch to
           <a href="../topics/mode.html">visual mode</a>.
@@ -81,16 +81,16 @@
   The library directory is determined by the first of the following which
   has a value:
   -L option;
-  <a href="../topics/special_variables.html#TFLIBDIR">%TFLIBDIR</a>
+  <a href="../topics/special_variables.html#%TFLIBDIR">%TFLIBDIR</a>
     environment <a href="../topics/variables.html">variable</a>; or,
   compiled-in default.
 
   The standard library file is determined by the first of the following which
   has a value:
-  <a href="../topics/special_variables.html#TFLIBRARY">TFLIBRARY</a>
+  <a href="../topics/special_variables.html#%TFLIBRARY">TFLIBRARY</a>
     environment <a href="../topics/variables.html">variable</a>; or,
   appending "/stdlib.tf" to
-    <a href="../topics/special_variables.html#TFLIBDIR">%TFLIBDIR</a>.
+    <a href="../topics/special_variables.html#%TFLIBDIR">%TFLIBDIR</a>.
 
 <p>
   TF honors several <a href="../topics/locale.html">locale</a> categories,
@@ -99,7 +99,7 @@
 
 <p>
   See
-  <a href="http://tf.tcp.com/~hawkeye/tf/">http://tf.tcp.com/~hawkeye/tf/</a>
+  <a href="http://tinyfugue.sourceforge.net/">http://tinyfugue.sourceforge.net/</a>
   for the latest info on TF.
 
 <p>
@@ -113,6 +113,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

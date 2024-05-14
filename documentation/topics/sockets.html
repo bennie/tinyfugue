@@ -15,7 +15,7 @@
   <dt><a href="../commands/fg.html">/fg</a>
           <dd>bring a <a href="../topics/sockets.html">socket</a> into the
           <a href="../topics/sockets.html#foreground">foreground</a>
-  <dt><a href="../topics/special_variables.html#login">%login</a>
+  <dt><a href="../topics/special_variables.html#%login">%login</a>
           <dd>enable <a href="../topics/login.html">automatic login</a>
   <dt><a href="../commands/listsockets.html">/listsockets</a>
           <dd>display a list of open
@@ -26,11 +26,17 @@
           <dd>idle time
   <dt><a href="../topics/functions.html#nactive">nactive()</a>
           <dd>number of active sockets, or number of undisplayed lines
-  <dt><a href="../topics/special_variables.html#background">%background</a>
+  <dt><a href="../topics/functions.html#is_connected">is_connected()</a>
+          <dd>tests whether a <a href="../topics/sockets.html">socket</a>
+	  is connected
+  <dt><a href="../topics/functions.html#is_open">is_open()</a>
+          <dd>tests whether a <a href="../topics/sockets.html">socket</a>
+	  is open
+  <dt><a href="../topics/special_variables.html#%background">%background</a>
           <dd>determines when to process text from
           <a href="../topics/sockets.html#background">background</a>
           <a href="../topics/sockets.html">sockets</a>
-  <dt><a href="../topics/special_variables.html#bg_output">%bg_output</a>
+  <dt><a href="../topics/special_variables.html#%bg_output">%bg_output</a>
           <dd>determines how to display text from
           <a href="../topics/sockets.html#background">background</a>
           <a href="../topics/sockets.html">sockets</a>
@@ -41,8 +47,10 @@
 <a name="foreground">
 <a name="background">
 <a name="foreground/background/current">
-  A <a href="../topics/sockets.html">socket</a> is an open connection to a
-  world.  TF can have multiple <a href="../topics/sockets.html">sockets</a>
+  A <a href="../topics/sockets.html">socket</a> is a world-in-use,
+  including a network connection (usually) and a virtual window for displaying
+  text.
+  TF can have multiple <a href="../topics/sockets.html">sockets</a>
   open simultaneously.  Only one of these can be displayed at a time; this is
   called the <a href="../topics/sockets.html#foreground">foreground</a>
   <a href="../topics/sockets.html">socket</a>.  In
@@ -56,13 +64,13 @@
   <a href="../topics/triggers.html">trigger</a>ed and stored in
   <a href="../topics/history.html">history</a> immediately, but is not
   displayed until that <a href="../topics/sockets.html">socket</a> is brought
-  into the <a href="../topics/sockets.html#foreground">foreground</a>.  Turning off the
-  <a href="../topics/special_variables.html#bg_output">%{bg_output}</a> flag
-  prevents the display when the <a href="../topics/sockets.html">socket</a>
-  is <a href="../topics/sockets.html#foreground">foregrounded</a>.  Turning off the
-  <a href="../topics/special_variables.html#background">%{background}</a>
-  flag prevents all processing until the
-  <a href="../topics/sockets.html">socket</a> is <a href="../topics/sockets.html#foreground">foregrounded</a>.
+  into the <a href="../topics/sockets.html#foreground">foreground</a>.
+  Handling of events in
+  <a href="../topics/sockets.html#background">background</a>
+  <a href="../topics/sockets.html">sockets</a> can be customized with the
+  <a href="../topics/special_variables.html#%bg_output">%{bg_output}</a> and
+  <a href="../topics/special_variables.html#%background">%{background}</a>
+  flags.
 
 <p>
   The <a href="../topics/sockets.html#current">current</a>
@@ -95,7 +103,7 @@
   <a href="../topics/attributes.html">hilite</a>d.  If the text was not
   <a href="../topics/attributes.html">gag</a>ged, TF also checks to see if it
   should be suppressed because of
-  <a href="../topics/special_variables.html#quiet">%quiet</a>,
+  <a href="../topics/special_variables.html#%quiet">%quiet</a>,
   <a href="../commands/watchdog.html">/watchdog</a> or
   <a href="../commands/watchname.html">/watchname</a>.  Finally, the text is
   added to the world's <a href="../topics/history.html">history</a> and
@@ -119,21 +127,24 @@
   <a href="../topics/sockets.html#foreground">foreground</a>
   <a href="../topics/sockets.html">sockets</a> with
   the <a href="../commands/fg.html">/fg</a> command;
-  the next <a href="../topics/sockets.html">socket</a> and previous
-  <a href="../topics/sockets.html">socket</a> keys, which default to ESC-b
-  and ESC-f, and can be modified with
-  <a href="../commands/bind.html">/bind</a>;
-  and, when the file world-q.tf is loaded, with the ESC-w keybinding.
+  the <a href="../commands/dokey.html">/dokey</a> socketb
+  and <a href="../commands/dokey.html">/dokey</a> socketf
+  commands, which by default are <a href="../topics/keybindings.html">bound</a>
+  to ESC-left and ESC-right;
+  and with the ESC-w <a href="../topics/keybindings.html">keybinding</a>,
+  which switches to the next world with activity, or if there is none,
+  to the last world you were on.
 
 <p>
-  If the <a href="../topics/special_variables.html#quitdone">%{quitdone}</a>
+  If the <a href="../topics/special_variables.html#%quitdone">%{quitdone}</a>
   flag is on, and you disconnect from all worlds (either with
   <a href="../commands/dc.html">/dc</a> or because the other end of the
-  <a href="../topics/sockets.html">socket</a> closes), Fugue will exit.
+  <a href="../topics/sockets.html">socket</a>'s network connection closes),
+  TF will exit.
 
 <p>
   If the
-  <a href="../topics/special_variables.html#sockmload">%{sockmload}</a> flag
+  <a href="../topics/special_variables.html#%sockmload">%{sockmload}</a> flag
   is on, a world's <a href="../topics/macros.html">macro</a> file will be
   loaded when you switch to the <a href="../topics/sockets.html">socket</a>
   for that world (either with the next and previous
@@ -145,10 +156,29 @@
   <a href="../commands/telnet.html">telnet</a>.
 
 <p>
-  If <a href="../topics/special_variables.html#proxy_host">%{proxy_host}</a>
+  If <a href="../topics/special_variables.html#%proxy_host">%{proxy_host}</a>
   is defined, all connections will go through a
   <a href="../topics/proxy.html">proxy</a> server.  See:
   <a href="../topics/proxy.html">proxy</a>.
+
+<p>
+  Normally, certain types of disconnection can only be detected when
+  you try to send something on a connection.  TF uses the socket option
+  SO_KEEPALIVE to detect such disconnections even when idle, but it usually
+  takes at least 2 hours to detect.  The time limit is usually a property
+  of the operating system, and can not be set by TF or an unprivileged user.
+
+<a name="loopback">
+<a name="connectionless">
+<a name="connectionless socket">
+<p>
+  A "connectionless" socket is created when you 
+  <a href="../commands/connect.html">/connect</a> to a
+  <a href="../topics/worlds.html">world</a>
+  that does not have a host or port defined.
+  If the world also has the echo flag set,
+  any text you "send" to the socket is immediately "received",
+  as if you were connected to an echo server.
 
 <p>
   See also: <a href="../topics/worlds.html">worlds</a>
@@ -157,6 +187,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

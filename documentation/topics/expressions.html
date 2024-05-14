@@ -22,29 +22,42 @@
 
 <p>
 <a name="float"></a>
+<a name="real"></a>
 <a name="integer"></a>
 <a name="string"></a>
+<a name="dtime"></a>
+<a name="atime"></a>
 <a name="hours:minutes:seconds"></a>
 <a name="hours:minutes"></a>
 <a name="hh:mm"></a>
 <a name="hh:mm:ss"></a>
+<a name="types"></a>
+<a name="scalar"></a>
+<a name="scalars"></a>
 <a name="operands"></a>
 <h2>Operands</h2>
   Operands can be any of:
   <ul>
-  <li>Integer constants like <code>42</code>.
-  <li>Floating point constants ("floats", for short) containing a decimal
-      point (<code>12.3</code>) or exponent (<code>1e-2</code>) or both
-      (<code>1.2e3</code>).
-  <li>Time values of the form <i>hours</i>:<i>minutes</i> or
-      <i>hours</i>:<i>minutes</i>:<i>seconds</i> (will be converted to
-      integer seconds, and can be used anywhere integers are expected).
+  <li>Integer constants (e.g., <code>42</code>).
+  <li>Real decimal point constants ("reals", for short) containing
+      a decimal point (e.g., <code>12.3456789</code>) or
+      exponent (e.g., <code>1e-2</code>) or
+      both (e.g., <code>1.23e4</code>).
+  <li>Time duration ("dtime") values of the form <i>hours</i>:<i>minutes</i>,
+      <i>hours</i>:<i>minutes</i>:<i>seconds</i>, or
+      <i>seconds</i> (where <i>seconds</i> may contain a decimal point
+      followed by up to 6 digits),
+      will be interpreted as real seconds (e.g., 0:01:02.3 == 62.3),
+      and can be used anywhere a number is expected.
+  <li>Absolute time ("atime") values, in the form of a number with up to 6
+      decimal places.  On most systems, this represents the number of seconds
+      since 1970-01-01 00:00:00 UTC.
   <li>Strings of characters, surrounded with quotes (", ', or `, with the
       same kind of quote on each end), like <code>"hello world"</code>.
   <li><a href="../topics/variables.html">Variable</a> references (see below)
-      like <code>wrapsize</code>.
+      like <code>visual</code>.
   <li><a href="../topics/substitution.html#%{">Variable substitutions</a>
-      (see below) like <code>{wrapsize}</code> and <code>{1}</code>.
+      (see below) like <code>{visual}</code> and <code>{1}</code>.
   <li><a href="../topics/substitution.html#${">Macro substitutions</a>
       like <code>${COMPRESS_SUFFIX}</code>.
   <li><a href="../topics/substitution.html#$(">Command substitutions</a>
@@ -102,27 +115,30 @@
   lowest precedence.  Operators listed together have equal precedence.  The
   letters in the table below correspond to the type of objects acted on by
   the operators:
-  <var>n</var> and <var>m</var> for numeric (integer or float),
-  <var>s</var> and <var>t</var> for string.
+  <var>n</var> for numeric (integer or real);
+  <var>s</var> for string;
+  <var>e</var> for any expression.
   All operators group left-to-right except assignment,
   which groups right-to-left.
   If any binary numeric operator is applied to two integers, the result
-  will be an integer; but if either operand is a float, the other will
-  be converted to float if it is not already a float, and the result will be
-  a float.
-
+  will be an integer, unless the result would overflow, in which case it
+  is converted to real.  If either operand is a real, the other will
+  be converted to real if it is not already a real, and the result will be
+  a real.
 <p>
-  <dl>
-  <dt>(<var>expression</var>)
+
+<dl compact>
+  <!-- defwidth=11 -->
+  <dt>(<var>e</var>)
           <dd>Parentheses, for grouping.
 
-<p>
-  <dt><var>fn</var>(<var>args</var>)
+<br><br>
+  <dt><var>func</var>(<var>args</var>)
           <dd>Perform <a href="../topics/functions.html">function</a>
-          <i>fn</i> on <i>args</i> (see:
-          <a href="../topics/functions.html">functions</a>).
+          <i>func</i> on arguments <i>args</i>.
+          (see:  <a href="../topics/functions.html">functions</a>).
 
-<p>
+<br><br>
   <dt>!<var>n</var>
           <dd>Boolean NOT (1 if <var>n</var>==0, otherwise 0).
   <dt>+<var>n</var>
@@ -130,83 +146,113 @@
   <dt>-<var>n</var>
           <dd>Unary negative.
   <dt>++<var>v</var>
-          <dd>Adds 1 to variable <var>v</var> and returns its new value.
+	  <dd>Equivalent to
+	  <code>(<var>v</var> := <var>v</var> + 1)</code>.
   <dt>--<var>v</var>
-          <dd>Subtracts 1 from variable <var>v</var> and returns its new value.
+	  <dd>Equivalent to
+	  <code>(<var>v</var> := <var>v</var> - 1)</code>.
 
-<p>
-  <dt><var>n</var> * <var>m</var>
+<br><br>
+  <dt><var>n1</var> * <var>n2</var>
           <dd>Numeric multiplication.
-  <dt><var>n</var> / <var>m</var>
+  <dt><var>n1</var> / <var>n2</var>
           <dd>Numeric division.
+          Remember, if both operands are type integer, the result will be
+          truncated to integer.
 
-<p>
-  <dt><var>n</var> + <var>m</var>
+<br><br>
+  <dt><var>n1</var> + <var>n2</var>
           <dd>Numeric addition.
-  <dt><var>n</var> - <var>m</var>
+  <dt><var>n1</var> - <var>n2</var>
           <dd>Numeric subtraction.
 
-<p>
-  <dt><var>n</var> = <var>m</var>
+<br><br>
+  <dt><var>n1</var> = <var>n2</var>
+          <dd>Numeric equality (but easily confused with assignment;
+	  you are advised to use <code>==</code> instead).
+  <dt><var>n1</var> == <var>n2</var>
           <dd>Numeric equality.
-  <dt><var>n</var> == <var>m</var>
-          <dd>Numeric equality.
-  <dt><var>n</var> != <var>m</var>
+  <dt><var>n1</var> != <var>n2</var>
           <dd>Numeric inequality.
-  <dt><var>s</var> =~ <var>t</var>
-          <dd>String equality (case sensitive).
-  <dt><var>s</var> !~ <var>t</var>
-          <dd>String inequality (case sensitive).
-  <dt><var>s</var> =/ <var>t</var>
-          <dd>String <var>s</var> matches
-          <a href="../topics/patterns.html#glob">glob</a> pattern <var>t</var>.
-  <dt><var>s</var> !/ <var>t</var>
-          <dd>String <var>s</var> does not match
-          <a href="../topics/patterns.html#glob">glob</a> pattern <var>t</var>.
-  <dt><var>n</var> &lt; <var>m</var>
+  <dt><var>s1</var> =~ <var>s2</var>
+          <dd>String equality (case sensitive,
+          <a href="../topics/attributes.html">attribute</a> insensitive).
+  <dt><var>s1</var> !~ <var>s2</var>
+          <dd>String inequality (case sensitive,
+          <a href="../topics/attributes.html">attribute</a> insensitive).
+  <dt><var>s1</var> =/ <var>s2</var>
+          <dd>String <var>s1</var> matches
+          <a href="../topics/patterns.html#glob">glob</a> pattern <var>s2</var>.
+  <dt><var>s1</var> !/ <var>s2</var>
+          <dd>String <var>s1</var> does not match
+          <a href="../topics/patterns.html#glob">glob</a> pattern <var>s2</var>.
+  <dt><var>n1</var> &lt; <var>n2</var>
           <dd>Numeric less than.
-  <dt><var>n</var> &lt;= <var>m</var>
+  <dt><var>n1</var> &lt;= <var>n2</var>
           <dd>Numeric less than or equal.
-  <dt><var>n</var> &gt; <var>m</var>
+  <dt><var>n1</var> &gt; <var>n2</var>
           <dd>Numeric greater than.
-  <dt><var>n</var> &gt;= <var>m</var>
+  <dt><var>n1</var> &gt;= <var>n2</var>
           <dd>Numeric greater than or equal.
 
-<p>
-  <dt><var>n</var> &amp; <var>m</var>
-          <dd>Boolean AND.  <var>m</var> will be evaluated if and only if
-          <var>n</var> is true.
+<br><br>
+  <dt><var>n1</var> &amp; <var>n2</var>
+          <dd>Boolean AND.  <var>n2</var> will be evaluated if and only if
+          <var>n1</var> is nonzero.
 
-<p>
-  <dt><var>n</var> | <var>m</var>
-          <dd>Boolean OR.  <var>m</var> will be evaluated if and only if
-          <var>n</var> is false.
+<br><br>
+  <dt><var>n1</var> | <var>n2</var>
+          <dd>Boolean OR.  <var>n2</var> will be evaluated if and only if
+          <var>n1</var> is zero.
 
-<p>
-  <dt><var>n</var> ? <var>a</var> : <var>b</var>
-  <dt><var>n</var> ? : <var>b</var>
+<br><br>
+  <dt><var>n</var> ? <var>e1</var> : <var>e2</var>
+  <br><var>n</var> ? : <var>e2</var>
           <dd>Conditional.  If <var>n</var> is nonzero, the result is the
           value of <a href="../topics/expressions.html">expression</a>
-          <var>a</var>; otherwise it is the value of
-          <a href="../topics/expressions.html">expression</a> <var>b</var>.
-          If <var>a</var> is omitted, the value of <var>n</var> is used in
+          <var>e1</var>; otherwise it is the value of
+          <a href="../topics/expressions.html">expression</a> <var>e2</var>.
+          If <var>e1</var> is omitted, the value of <var>n</var> is used in
           its place.
+	  Note that digits followed by a colon is interpreted as a dtime value,
+	  so if the <var>e2</var> operand of the ?: operator is an integer,
+	  you must separate it from the colon (with a space or parenthesis,
+	  for example).
 
-<p>
-  <dt><var>v</var> := <var>s</var>
+<br><br>
+  <dt><var>v</var> := <var>e</var>
           <dd>Assignment.  The identifier "<var>v</var>" refers to the
           <a href="../topics/variables.html">variable</a> in the nearest scope.
           If not found, a new <a href="../topics/variables.html">variable</a>
           is created at the global level, as if by
           <a href="../commands/set.html">/set</a>.
+          If <var>v</var> is a
+          <a href="../topics/special_variables.html">special variable</a>,
+          the value of <var>e</var> may need to be converted to the type of
+          <var>v</var>, or the assignment may fail altogther if the value
+          is not legal for <var>v</var>.  The value of the assignment
+          expression is the new value of <var>v</var>.
 
-<p>
-  <dt><var>a</var> , <var>b</var>
+  <dt><var>v</var> += <var>n</var>
+	  <dd>Equivalent to
+	  <code><var>v</var> := <var>v</var> + (<var>n</var>)</code>.
+  <dt><var>v</var> -= <var>n</var>
+	  <dd>Equivalent to
+	  <code><var>v</var> := <var>v</var> - (<var>n</var>)</code>.
+  <dt><var>v</var> *= <var>n</var>
+	  <dd>Equivalent to
+	  <code><var>v</var> := <var>v</var> * (<var>n</var>)</code>.
+  <dt><var>v</var> /= <var>n</var>
+	  <dd>Equivalent to
+	  <code><var>v</var> := <var>v</var> / (<var>n</var>)</code>.
+
+<br><br>
+  <dt><var>e1</var> , <var>e2</var>
           <dd>Comma.  <a href="../topics/expressions.html">Expressions</a>
-          <var>a</var> and <var>b</var> are evaluated; the result is the
-          value of <var>b</var>.  Only useful if <var>a</var> has some side
+          <var>e1</var> and <var>e2</var> are evaluated; the result is the
+          value of <var>e2</var>.  Only useful if <var>e1</var> has some side
           effect.
-  </dl>
+</dl>
 
 <p>
   The comparison operators return 0 for false, nonzero for true.  The boolean
@@ -217,32 +263,54 @@
   <a href="../topics/expressions.html">expression</a>, but is important when
   the second operand performs side effects.
 
-<a name=""></a>
+<p>
+  Normal (non-<a href="../topics/special_variables.html">enumerated</a>)
+  <a href="../topics/variables.html">Variables</a> set with any of the 
+  assignment operators keep the type of the
+  <a href="../topics/expressions.html">expression</a> assigned to them.
+  This is different than <a href="../commands/set.html">/set</a> and
+  <a href="../commands/let.html">/let</a>, which always assign a string value
+  to the <a href="../topics/variables.html">variables</a>.
+  This distinction is important for real numeric values, which lose precision 
+  if converted to a string and back.
+
+<a name="conversion"></a>
 <p>
   All operands will be automatically converted to the type expected by the
   operator.
   <ul>
-  <li>Integer to boolean:  0 is false, nonzero is true.
-  <li>Other to boolean:  converted to integer, then to boolean.
-  <li>String to numeric:  leading signs, digits, and exponents are interpreted
-      as a numeric value; e.g., "12abc" becomes 12, "12.3junk" becomes 12.3,
+  <li>String to numeric:  leading signs, digits, colons, and exponents are
+      interpreted as an integer, decimal (real), or dtime (real) value; e.g.,
+      "12abc" becomes 12,
+      "12.3junk" becomes 12.3,
+      "0:01:02.3" becomes 0:01:02.3,
       and "xyz" becomes 0.
-  <li>Integer to float:  straightforward.
-  <li>Integer to string:  straightforward.
-  <li>Float to integer:  the fractional part is truncated.
-  <li>Float to string:  decimal notation if the exponent
-      is greater than -5 and less than 10, otherwise exponential notation.
+
+  <li>Integer to real:  straightforward.
+
+  <li>Real to integer:  the fractional part is truncated.
+
   <li><a href="../topics/special_variables.html">Enumerated variable</a> to
       string:  straightforward string value.
+
   <li><a href="../topics/special_variables.html">Enumerated variable</a> to
-      integer:  one integer stands for each of the allowed values.
+      numeric:  one integer stands for each of the allowed values.
       "Off" is always 0, "on" is always 1, etc.
       This makes <code>(!<a href="../topics/mode.html">visual</a>)</code>
       and <code>(<a href="../topics/mode.html">visual</a> == 0)</code> the same
       as <code>(<a href="../topics/mode.html">visual</a> =~ 'off')</code>.
-  <li>Other (non-enumerated) <a href="../topics/variables.html">variables</a>
-      are treated as strings, which are converted to another type if needed.
+
+  <li>Integer to string:  straightforward.
+  <li>Real to string:  decimal notation if the exponent
+      is greater than -5 and less than
+      <a href="../topics/special_variables.html#%sigfigs">%sigfigs</a>,
+      otherwise exponential notation.
+
+  <li>Normal (non-<a href="../topics/special_variables.html">enumerated</a>)
+      <a href="../topics/variables.html">variables</a> are treated as whatever
+      type their value has.
   </ul>
+<a name=""></a>
 
 <p>
 <h2>Examples</h2>
@@ -275,6 +343,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

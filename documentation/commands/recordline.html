@@ -34,6 +34,17 @@
           <dd> record the line with the system time <i>time</i> (as displayed
           by <code><a href="../commands/recall.html">/recall</a> -t@</code>)
           instead of the current time
+  <dt>-a<i>attrs</i>
+	<dd>Record <i>text</i> with the
+	<a href="../topics/attributes.html">attributes</a> given by
+	<i>attrs</i>.
+  <dt>-p
+	<dd>Interpet "<code>@{<i>attr</i>}</code>" strings as commands to
+        set <a href="../topics/attributes.html">attributes</a> inline.
+        "<code>@@</code>" strings are interpreted as "<code>@</code>".
+	"<code>@{n}</code>" or "<code>@{x}</code>" will
+        turn attributes off.
+	See also: <a href="../topics/functions.html#decode_attr">decode_attr()</a>.
   </dl>
 
 <p>
@@ -49,7 +60,7 @@
 
 <p>
 <code>
-  <a href="../commands/quote.html">/quote</a> -dexec
+  <a href="../commands/quote.html">/quote</a> -S -dexec
   <a href="../commands/recordline.html">/recordline</a> -i 
   <a href="../topics/options.html">-</a> 'input.log
 </code>
@@ -77,6 +88,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

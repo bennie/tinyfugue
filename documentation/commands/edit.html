@@ -84,6 +84,10 @@
   from the original definition.
 
 <p>
+  As of version 5.0, <a href="../commands/edit.html">/edit</a>
+  does not renumber the macro being edited.
+
+<p>
   Example:
 
 <p>
@@ -99,8 +103,12 @@
 <p>
   The second command will change the probability of /greet's
   <a href="../topics/triggers.html">trigger</a> from 100% to 0%, effectively
-  turning it off without actually
-  <a href="../commands/undef.html">undefining</a> it.
+  disabling it without actually
+  <a href="../commands/undef.html">undefining</a> it
+  (however, because it is not 
+  <a href="../topics/priority.html">fall-through</a>,
+  it will still block other triggers of lower
+  <a href="../topics/priority.html">priority</a>).
 
 <p>
   See: <a href="../topics/macros.html">macros</a>,
@@ -116,6 +124,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

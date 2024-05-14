@@ -16,11 +16,17 @@
   and validates <a href="../topics/macros.html">macro</a> options according
   to the format described by <i>options</i>.  <i>Options</i> is a list of
   letters that <a href="../topics/getopts.html">getopts()</a>
-  will accept; if a letter is followed by ':', the
-  option will be expected to have a string argument, and if a letter
-  is followed by "#" the option will be expected to have a numeric argument.
+  will accept.
+  If a letter is followed by ":",
+  the option will be expected to have a string argument;
+  if a letter is followed by "#",
+  the option will be expected to have a
+  <a href="../topics/expression.html">expression</a> argument that
+  evaluates to a (possibly signed) integer;
+  if a letter is followed by "@",
+  the option will be expected to have a time argument.
   The option syntax accepted by
-  <a href="../topics/getopts.html">getopts()</a> is the same as that accepted
+  <a href="../topics/getopts.html">getopts()</a> is a subset of that accepted
   by builtin tf commands, as described under
   "<a href="../topics/options.html">options</a>".
 
@@ -70,7 +76,7 @@
 <p>
 <pre>
   <a href="../commands/def.html">/def</a> foo = \
-      <a href="../commands/if.html">/if</a> (!getopts("abns:", "")) <a href="../commands/return.html">/return</a> 0%; <a href="../commands/if.html">/endif</a>%; \
+      <a href="../commands/if.html">/if</a> (!getopts("abn#s:", "")) <a href="../commands/return.html">/return</a> 0%; <a href="../commands/if.html">/endif</a>%; \
       <a href="../commands/echo.html">/echo</a> option a:  %{opt_a}%;\
       <a href="../commands/echo.html">/echo</a> option b:  %{opt_b}%;\
       <a href="../commands/echo.html">/echo</a> option n:  %{opt_n}%;\
@@ -107,7 +113,8 @@
 </pre>
   produces the error:
 <pre>
-      foo: invalid option 'x'
+      % foo: invalid option 'x'
+      % foo: options: -ab -n&lt;integer&gt; -s&lt;string&gt;
 </pre>
 
 <p>
@@ -121,6 +128,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

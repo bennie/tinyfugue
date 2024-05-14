@@ -34,7 +34,7 @@
   <a href="../topics/triggers.html">trigger</a>; default is 0.  The matching
   style of the <a href="../topics/triggers.html">trigger</a> is determined by
   the global <a href="../topics/variables.html">variable</a>
-  <a href="../topics/special_variables.html#matching">%{matching}</a>.
+  <a href="../topics/special_variables.html#%matching">%{matching}</a>.
 
 <p>
   If the command fails it returns 0.  Otherwise, it creates a new
@@ -65,6 +65,15 @@
     = <i>body</i>.<br>
 
 <p>
+  Note:  the <a href="../commands/trig.html">/trig</a> commands create
+  <a href="../topics/macros.html">macros</a> without names.  Thus each
+  <a href="../commands/trig.html">/trig</a> command will create a new
+  <a href="../topics/macros.html">macro</a> macro instead of replacing
+  an old <a href="../topics/macros.html">macro</a>.  For this reason,
+  it is usually better to use <a href="../commands/def.html">/def</a>
+  and give your <a href="../topics/macros.html">macros</a> names.
+
+<p>
   See: <a href="../topics/triggers.html">triggers</a>,
   <a href="../topics/evaluation.html">evaluation</a>,
   <a href="../topics/patterns.html">patterns</a>,
@@ -75,6 +84,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

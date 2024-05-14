@@ -6,7 +6,7 @@
   Usage:
 
 <p>
-  <a href="../commands/trigger.html">/TRIGGER</a> [-g] [-w[<i>world</i>]]
+  <a href="../commands/trigger.html">/TRIGGER</a> [-ln] [-g] [-w[<i>world</i>]]
   [-h[<i>event</i>]] <i>text</i><br>
 <hr>
 
@@ -44,24 +44,38 @@
       Without -h, <a href="../commands/trigger.html">/trigger</a> matches
       <a href="../topics/triggers.html">triggers</a>,
       not <a href="../topics/hooks.html">hooks</a>.
+    <dt>-n
+      <dd>Do not execute any of the matched macros; instead, display a list
+      of each macro that would have matched, including its
+      <a href="../commands/def.html#-F">fallthru flag</a>,
+      <a href="../commands/def.html#-p">priority</a>, and name.
+      (Note that if any macro in the list would have executed
+      <a href="../commands/substitute.html">substitute()</a> or
+      <a href="../commands/substitute.html">/substitute</a>,
+      the macros listed after it may not be correct.)
+    <dt>-l
+      <dd>Like -n, but list each macro in full, as if by
+      <a href="../commands/list.html">/list</a>.
   </dl>
-  If no options are given, both -g and -w are assumed.  That is, <i>text</i>
+  If neither -g nor -w options are given, both are assumed.
+  That is, <i>text</i>
   is matched against global <a href="../topics/triggers.html">triggers</a>
-  and <a href="../topics/hooks.html">hooks</a>, as well as
+  or <a href="../topics/hooks.html">hooks</a>, as well as
   <a href="../topics/triggers.html">triggers</a>
-  and <a href="../topics/hooks.html">hooks</a> for the
+  or <a href="../topics/hooks.html">hooks</a> for the
   <a href="../topics/sockets.html#current">current</a>
   <a href="../topics/worlds.html">world</a>.
 
 <p>
   See: <a href="../topics/triggers.html">triggers</a>,
   <a href="../topics/hooks.html">hooks</a>,
+  <a href="../topics/debugging.html">debugging</a>,
   <a href="../commands/def.html">/def</a>
 
 <p>
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

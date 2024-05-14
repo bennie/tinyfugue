@@ -1,6 +1,7 @@
 <title>TinyFugue: tfio</title>
 <!--"@tfout"-->
 <!--"@tferr"-->
+<!--"@alert"-->
 <!--"@streams"-->
 <!--"@tfio"-->
 <h1>tfio</h1>
@@ -20,10 +21,24 @@
   or <a href="../topics/evaluation.html">%| pipe</a>.
 
 <p>
-  Tf error messages, hook messages, and the output of
+  Many TF error messages, hook messages, and the output of
   "<a href="../commands/echo.html">/echo -e</a>" are output to the
   "<a href="../topics/tfio.html">tferr</a>" stream, which is always attached
   to the screen, and may not be redirected.
+
+<p>
+  Some TF error messages, hook messages, and the output of
+  "<a href="../commands/echo.html">/echo -A</a>" are output to the
+  "<a href="../topics/tfio.html">alert</a>" stream.
+  In <a href="../topics/mode.html#visual">visual</a> mode,
+  text sent to the alert stream is displayed briefly on the status line
+  <a href="../topics/status_line.html">status line</a>, where it can be
+  seen immediately even if you're at a 
+  <a href="../commands/more.html">more</a> prompt.
+  The duration of the alert display is determined by 
+  <a href="../topics/special_variables.html#%alert_time">%alert_time</a>.
+  In <a href="../topics/mode.html#nonvisual">nonvisual</a> mode,
+  text sent to the alert stream is redirected to the tferr stream.
 
 <p>
   Text from a world or "<a href="../commands/echo.html">/echo -w</a>"
@@ -136,6 +151,8 @@
   <a href="../topics/functions.html#tfwrite">tfwrite</a>(<var>line</var>)
   is equivalent to
   <a href="../topics/functions.html#echo">echo</a>(<var>line</var>)).
+  <a href="../topics/attributes.html">Display attributes</a> of <var>line</var>
+  are stripped if it is written outside of tf (i.e., to a file or pipe).
 
 <p>
   If an OS file (mode "w" or "a") is set to autoflush (the default), then
@@ -235,6 +252,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

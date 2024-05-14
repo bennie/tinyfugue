@@ -1,13 +1,13 @@
 <title>TinyFugue: status line</title>
 <!--"@status"-->
 <!--"@status fields"-->
-<!--"@status_fields"-->
 <!--"@%status_fields"-->
 <!--"@visual bar"-->
 <!--"@visual line"-->
 <!--"@status bar"-->
 <!--"@status_line"-->
 <!--"@status line"-->
+<!--"@status area"-->
 <h1>status line</h1>
 
   In <a href="../topics/mode.html#visual">visual</a> mode,
@@ -35,77 +35,191 @@
       that contain unread mail.
   <li>"(Over)" indicates that typed characters will overstrike instead of
       insert (that is,
-      <a href="../topics/special_variables.html#insert">%insert</a> is off).
+      <a href="../topics/special_variables.html#%insert">%insert</a> is off).
   <li>The current time is displayed at the right end of the status line.
   </ul>
 
 
-<h1>Configuring the status line</h1>
+<h1>Configuring the status area</h1>
 
 <p>
-  The <a href="../topics/status_line.html">status_fields</a>
-  <a href="../topics/variables.html">variable</a>
-  contains a list of descriptions of fields to be displayed on the status
-  line.  Each description consists of:
+  The status area may contain 1 or more rows; the number is determined by
+  <a href="../topics/special_variables.html#%status_height">%status_height</a>.
+  The rows are numbered from the top starting at 0.
+  Each row is defined as a list of fields.
+  A status field is defined as follows:
   <ul>
      <li>an optional field name
      <li>an optional ":" and number indicating the field width
      <li>an optional ":" and <a href="../topics/attributes.html">attribute</a>
   </ul>
 
-<p>
-  Fields without names are used to indicate padding between named fields.
-  Field names enclosed in quotes (", ', or `) are displayed literally; use
-  the \ character to escape a quote inside the string.
-  Field names beginning with "@" correspond to internal states.
-  Other field names correspond to the
-  <a href="../topics/variables.html">variable</a> with the same name.
-  TF will monitor the internal state or
-  <a href="../topics/variables.html">variable</a> corresponding to
-  each internal and <a href="../topics/variables.html">variable</a>
-  field, and update those fields whenever the
-  monitored item changes.
-  Also, the entire status line will be updated whenever
-  the screen is redrawn or the
-  <a href="../topics/status_line.html">status_fields</a>
-  <a href="../topics/variables.html">variable</a>
-  is modified.
+  The current list of status fields for row <i>N</i> can be fetched with 
+  <a href="../topics/functions.html#status_fields">status_fields(<i>N</i>)</a>.
+
+<a name="%status_field_defaults"></a>
+<a name="status_rm"></a>
+<a name="status_edit"></a>
+<a name="status_defaults"></a>
+<a name="status_save"></a>
+<a name="status_restore"></a>
+<a name="status_add"></a>
+<a name="/clock"></a>
+<a name="/status_rm"></a>
+<a name="/status_edit"></a>
+<a name="/status_defaults"></a>
+<a name="/status_save"></a>
+<a name="/status_restore"></a>
+<a name="/status_add"></a>
+    The following commands modify the fields of the status area:
+<dl>
+<dt><code>/clock off</code>
+    <dd>Remove the clock from the status bar
+    (equivalent to "<code>/status_rm @clock</code>").
+    <br><br>
+
+<dt><code>/clock on</code>
+    <dd>Add a clock to the end of status row 0 if there is not already
+    a clock on status row 0.
+    The width of the @clock field will be set exactly wide
+    enough to hold a time formatted according to 
+    <a href="../topics/special_variables.html#%clock_format">%clock_format</a>.
+    <br><br>
+
+<dt><code>/clock [<i>format</i>]</code>
+    <dd>Add a clock to the end of status row 0 if there is not already a
+    clock on status row 0; in either case, use <i>format</i> to control the
+    format of the clock (see <a href="../commands/ftime.html">ftime()</a>
+    for the meaning of <i>format</i>).
+    If <i>format</i> is omitted, it defaults to "%H:%M".
+    The width of the @clock field will be set exactly wide enough
+    to hold a time formatted according to <i>format</i>.
+    <br><br>
+    <dl><dt>Example: display a clock in 12-hour format:
+	<dd><code>/clock %I:%M</code>
+    </dl>
+    <br>
+
+<dt><code>/status_defaults</code>
+    <dd>Restore list of status fields for all rows and their formats
+    (%status_int_* and %status_var_*) to their default values.
+    (Previous versions of tf had a
+    <a href="../topics/status_line.html">%status_field_defaults</a> variable;
+    this is now deprecated.)
+    <br><br>
+
+<dt><code>/status_save <i>name</i></code>
+    <dd>Save the current list of fields in row 0 into memory slot with label
+    <i>name</i>.
+    <i>Name</i> must be a legal variable name.
+    (Saved fields will be forgotten when tf exits.)
+    <br><br>
+
+<dt><code>/status_restore <i>name</i></code>
+    <dd>Restore the list of fields in row 0 that was previously saved with
+    "/status_save <i>name</i>".
+    <br><br>
+
+<dt><code>/status_rm [-r<i>N</i>] <i>name</i></code>
+    <dd>Remove status field <i>name</i> from status row <i>N</i>.
+    If -r is not specified, all rows are searched.
+    Only the first matching field is removed.
+    If there are
+    unnamed pad fields on both sides of the named field, the one with the
+    smaller width is also removed; if the named field is at the beginning
+    or end of a row, the neighboring pad field (if any) is removed.
+    <br><br>
+    <dl><dt>Example:  Remove the @mail field from the status bar:
+	<dd><code>/status_rm @mail</code>
+    </dl>
+    <br>
+
+<dt><code>/status_add [<i>options</i>] <i>name</i>[:<i>width</i>[:<i>attributes</i>]] ...</code>
+    <dd>Add status field <i>name</i> to the status bar
+    with optional <i>width</i> and <i>attributes</i>.
+    Options:
+    <dl>
+    <dt>-r<i>N</i>	<dd>add to row <i>N</i> (default 0)
+    <dt>-A		<dd>add after all other fields (i.e., at end)
+    <dt>-A<i>field</i>	<dd>add after existing field <i>field</i>
+    <dt>-B		<dd>add before all other fields (i.e., at beginning)
+    <dt>-B<i>field</i>	<dd>add before existing field <i>field</i>
+    <dt>-s<i>N</i>	<dd>insert padding of <i>N</i> spaces between the new
+			field and the neighbor selected by -A or -B (default 1)
+    <dt>-x		<dd>don't add the field if one with the same name is
+			already present
+    <dt>-c		<dd>clear all existing fields before adding new fields
+    </dl>
+    If neither -A nor -B is given, -A is assumed.
+    <br><br>
+    <dl>
+    <dt>Example:  Add a new field after the world name to display the contents
+	of the variable "hp":
+	<dd><code>/status_add -A@world hp:4</code>
+    </dl>
+    <br>
+    <dl><dt>Multiple fields may be specified, but padding is not automatically
+    added between them; you must specify padding explicly.  For example,
+	<dd><code>/status_add -Aclock foo:4 :1 bar:4 :2 baz:4</code>
+    <dt>is equivalent to
+	<dd><code>/status_add -Aclock foo:4</code>
+	<br><code>/status_add -Afoo bar:4</code>
+	<br><code>/status_add -Abar -s2 baz:4</code>
+    </dl>
+    <br>
+
+<dt><code>/status_edit [-r<i>N</i>] <i>name</i>[:<i>width</i>[:<i>attributes</i>]]</code>
+    <dd>If field <i>name</i> currently exists in any status row, replace it
+    with <i>name</i>[:<i>width</i>[:<i>attributes</i>]].  Neighboring padding
+    is unchanged.  If -r is given, only row <i>N</i> is searched.  Only the
+    first matching field is edited.
+    <br><br>
+    <dl><dt>Example:  Change the @log field to say "L" instead of "(Log)", and
+    change the field's width to match:
+	<dd><code>/set status_int_log=nlog() ? "L" : ""</code>
+	<br><code>/status_edit @log:1</code>
+    </dl>
+    <br>
+
+</dl>
+<a name=""></a>
 
 <p>
-  The actual format of an internal or
-  <a href="../topics/variables.html">variable</a> field displayed on the
-  status line is determined by evaluating the
-  <a href="../topics/expressions.html">expression</a> contained in the
-  <a href="../topics/variables.html">variable</a>
-  <code>status_int_<i>name</i></code> (for internal state
-  <code>@<i>name</i></code>) or
-  <code>status_var_<i>name</i></code> (for variable <code><i>name</i></code>).
-  Also, for <a href="../topics/variables.html">variable</a>
-  fields, if <code>status_var_<i>name</i></code> is not
-  set, the value of the <a href="../topics/variables.html">variable</a>
-  will be displayed directly.  Changing a format variable will not cause
-  the status line to update; to force an update, you can
-  "<code><a href="../commands/dokey.html">/dokey</a> redraw</code>" (^L), or
-  "<code><a href="../commands/test.html">/test</a> 
-  <a href="../topics/status_line.html">status_fields</a> :=
-  <a href="../topics/status_line.html">status_fields</a></code>".
+  For backward compatiblity, you can get and set the status fields for row 0
+  via the %status_fields <a href="../topics/variables.html">variable</a>,
+  but doing so is deprecated.
 
 <p>
-  A field's width determines how many columns it will take up on the screen.
-  If the width of a string literal field field is omitted, it defaults to the
-  length of the string literal.
-  One other field width may be omitted, which means that field will use
-  whatever columns are unused by the other fields.
-  Normally, fields are left-justified within the width, but a negative
-  field width will right-justify the field within the absolute
-  value of the width.  If the formatted text is wider than the field width,
-  it will be truncated to fit within the specified width.  Fields may also
-  be truncated if they would not fit on the screen.
-
-<p>
-  The <a href="../topics/attributes.html">attributes</a> are applied to the
-  field text when it is displayed, but are not applied to the padding used to
-  bring the field to the specified width.
+  The default list of status fields is:
+  <pre>
+    @more:8:Br :1 @world :1 @read:6 :1 @active:11 :1 @log:5 :1 @mail:6 :1 insert:6 :1 kbnum:4 :1 @clock:5
+  </pre>
+  There are several types of fields:
+  <ul>
+    <li>Unnamed fields create padding between the fields on either side of it.
+	Each of the ":1" fields in the default
+        <a href="../topics/status_line.html">status_fields</a>
+	puts a space of 1 character between the other fields.
+    <li>Field names beginning with "@" correspond to internal states.
+	For example, "@more" will be updated whenever the number of unseen
+	lines changes.
+    <li>Field names containing only letter, digits, and underscores correspond
+        to <a href="../topics/variables.html">variables</a>.
+	Whenever there is a change in the value of the
+        <a href="../topics/variables.html">variable</a>
+	with the same name, the field will be updated.
+	The value an unset variable is considered to be the empty string.
+	For example, whenever
+	the <a href="../topics/special_variables.html#%insert">%insert</a>
+	variable changes, the "insert" field is updated.
+        Any <a href="../topics/variables.html">variable</a> may be monitored
+	in this manner.
+    <li>A field whose name is in quotes (", ', or `) has its name (without the
+	quotes) printed literally on the status bar, and is never updated.
+	Use the \ character to escape a quote inside the string.
+	The default <a href="../topics/status_line.html">status_fields</a>
+	does not contain any of these literal fields.
+  </ul>
 
 <p>
   Any <a href="../topics/variables.html">variable</a> may be monitored,
@@ -113,12 +227,13 @@
   The internal statuses available are:
   <dl>
   <dt><code>@more</code>
-	<dd>Updated when the number of unseen lines changes.
+	<dd>Updated when there is a change in the number of lines below the
+	bottom of the window.
   <dt><code>@world</code>
 	<dd>Updated when when the
 	<a href="../topics/sockets.html">foreground</a>
 	<a href="../topics/worlds.html">world</a> changes.
-	During the format expression, the
+	During the evaluation of the format expression, the
         <a href="../topics/sockets.html">current socket</a> is the
 	new <a href="../topics/sockets.html">socket</a>.
   <dt><code>@read</code>
@@ -127,7 +242,7 @@
   <dt><code>@active</code>
 	<dd>Updated when the number of active
 	<a href="../topics/worlds.html">worlds</a> changes.
-	During the format expression, the
+	During the evaluation of the format expression, the
         <a href="../topics/sockets.html">current socket</a> is the
 	<a href="../topics/sockets.html">socket</a> that became active.
   <dt><code>@log</code>
@@ -137,34 +252,65 @@
 	<dd>Updated when mail arrives (See
 	"<a href="../topics/mail.html">mail</a>").
   <dt><code>@clock</code>
-	<dd>Updated every minute, at 0 seconds past the minute.
+	<dd>Updated every minute, on the minute.
   </dl>
 
 <p>
+  A field's width determines how many columns it will take up on the screen.
+  If the width of a string literal field field is omitted, it defaults to the
+  length of the string literal.
+  One other field width may be omitted or set to 0, which means that field
+  will use whatever columns are unused by the other fields.
+  Normally, fields are left-justified within the width, but a negative
+  field width will right-justify the field within the absolute
+  value of the width.  A width of "-0" can be used to right-justify the
+  variable-width field.  If the formatted text is wider than the field width,
+  it will be truncated to fit within the specified width.  Fields may also
+  be truncated if they would not fit on the screen.
+
+<p>
+  The <a href="../topics/attributes.html">attributes</a> explicily given
+  in the field definiton are combined with those in the corresponding
+  <code>%status_attr_int_<i>fieldname</i></code> (for internal state fields)
+  or <code>%status_attr_var_<i>varname</i></code> (for variable fields).
+  The combined <a href="../topics/attributes.html">attributes</a>
+  are applied to the field text when it is displayed,
+  but not to the padding used to bring the field to the specified width.
   The entire status line, including padding, is displayed with the
   <a href="../topics/attributes.html">attributes</a> given by
-  <a href="../topics/special_variables.html#status_attr">%status_attr</a>,
-  which is none by default.  Individual field
-  <a href="../topics/attributes.html">attributes</a> are combined with
-  <a href="../topics/special_variables.html#status_attr">%status_attr</a>
-  <a href="../topics/attributes.html">attributes</a>.
+  <a href="../topics/special_variables.html#%status_attr">%status_attr</a>,
+  which is none by default.
 
 <p>
   To bring fields up to their specified width, they are padded with 
-  <a href="../topics/special_variables.html#status_pad">%status_pad</a>,
+  <a href="../topics/special_variables.html#%status_pad">%status_pad</a>,
   which is "_" by default.  By setting 
-  <a href="../topics/special_variables.html#status_pad">status_pad</a>
+  <a href="../topics/special_variables.html#%status_pad">status_pad</a>
   to " " and
-  <a href="../topics/special_variables.html#status_attr">status_attr</a>
+  <a href="../topics/special_variables.html#%status_attr">status_attr</a>
   to "r", you can create a status line that looks more like the one in emacs
   or the irc client.
+
+<p>
+  When a status field is updated, the text displayed for that field is
+  determined by evaluating the
+  <a href="../topics/expressions.html">expression</a> contained in the
+  <a href="../topics/variables.html">variable</a>
+  <code>status_int_<i>name</i></code> (for internal state
+  <code>@<i>name</i></code>) or
+  <code>status_var_<i>name</i></code> (for variable <code><i>name</i></code>).
+  Also, for <a href="../topics/variables.html">variable</a>
+  fields, if <code>status_var_<i>name</i></code> is not
+  set, the value of the <a href="../topics/variables.html">variable</a>
+  will be displayed directly.  Changing a format variable will cause
+  the status line to update.
 
 <p>
   All this may sound rather complex, so an example might help.  The default
   value of <a href="../topics/status_line.html">status_fields</a> is:
 
   <pre>
-  @more:8:Br :1 @world :1 @read:6 :1 @active:11 :1 @log:5 :1 @mail:6 :1 insert:6 :1 @clock:5
+  @more:8:Br :1 @world :1 @read:6 :1 @active:11 :1 @log:5 :1 @mail:6 :1 insert:6 :1 kbnum:4 :1 @clock:5
   </pre>
 
   and the corresponding format
@@ -175,7 +321,8 @@
        <a href="../topics/functions.html#moresize">moresize()</a> == 0 ? "" : \
        <a href="../topics/functions.html#moresize">moresize()</a> &gt; 9999 ? "MuchMore" : \
        <a href="../topics/functions.html#pad">pad</a>("More", 4, <a href="../topics/functions.html#moresize">moresize()</a>, 4)
-  <a href="../commands/set.html">/set</a> status_int_world   <a href="../topics/worlds.html">${world_name}</a>
+  <a href="../commands/set.html">/set</a> status_int_world   <a href="../topics/functions.html#strcat">strcat</a>( \
+       <a href="../topics/functions.html#fg_world">fg_world</a>() !~ "" &amp; !<a href="../topics/functions.html#is_open">is_open</a>(<a href="../topics/functions.html#fg_world">fg_world</a>()) ? "!" : "",  <a href="../topics/functions.html#fg_world">fg_world</a>())
   <a href="../commands/set.html">/set</a> status_int_read    <a href="../topics/functions.html#nread">nread()</a> ? "(Read)" : ""
   <a href="../commands/set.html">/set</a> status_int_active  <a href="../topics/functions.html#nactive">nactive()</a> ? <a href="../topics/functions.html#pad">pad</a>("(Active:",0,<a href="../topics/functions.html#nactive">nactive()</a>,2,")") : ""
   <a href="../commands/set.html">/set</a> status_int_log     <a href="../topics/functions.html#nlog">nlog()</a> ? "(Log)" : ""
@@ -183,8 +330,8 @@
        !<a href="../topics/functions.html#nmail">nmail</a>() ? "" : \
        <a href="../topics/functions.html#nmail">nmail</a>()==1 ? "(Mail)" : \
        <a href="../topics/functions.html#pad">pad</a>("Mail", 0, <a href="../topics/functions.html#nmail">nmail</a>(), 2)
-  <a href="../commands/set.html">/set</a> status_var_insert  <a href="../topics/special_variables.html#insert">insert</a> ? "" : "(Over)"
-  <a href="../commands/set.html">/set</a> status_int_clock   <a href="../commands/ftime.html">ftime</a>("%I:%M", <a href="../topics/functions.html#time">time()</a>)
+  <a href="../commands/set.html">/set</a> status_var_insert  <a href="../topics/special_variables.html#%insert">insert</a> ? "" : "(Over)"
+  <a href="../commands/set.html">/set</a> status_int_clock   <a href="../commands/ftime.html">ftime</a>(<a href="../topics/special_variables.html#%clock_format">clock_format</a>)
   </pre>
 
 <p>
@@ -208,20 +355,15 @@
   the fields on its right are pushed to the right side of the screen, and
   the "<code>@world</code>" field uses whatever space remains in the middle.
 
-<p>
-  The unnamed fields with width 1 are used to display a pad character between
-  the named fields.
-
 <a name="prompt example"></a><!-- referenced by ../commands/prompt.html -->
 <p>
   Another example:  Say your mud has a
   <a href="../topics/prompts.html">prompt</a> like
   "<code>H:42 M:17&gt; </code>" that shows your hit points and mana,
   and you want it displayed on the status line like
-  "<code> 42, 17</code>".
-  To do this, add "<code>hp_mana:7</code>" to the
-  <a href="../topics/status_line.html">status_fields</a>
-  <a href="../topics/variables.html">variable</a>,
+  "<code> 42, 17</code>", after the world name.
+  To do this, call
+  "<code>/status_add -Aworld hp_mana:7</code>",
   and define a <a href="../topics/prompts.html">prompt</a>
   <a href="../topics/hooks.html">hook</a>:
 <pre>
@@ -240,6 +382,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

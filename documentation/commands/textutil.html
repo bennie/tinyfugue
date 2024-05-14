@@ -10,6 +10,7 @@
 <!--"@/copyio"-->
 <!--"@/fmt"-->
 <!--"@/uniq"-->
+<!--"@/randline"-->
 <!--"@textutil"-->
 <!--"@textutil.tf"-->
 <h1>Text Utilities</h1>
@@ -21,9 +22,14 @@
   The library file <a href="../commands/textutil.html">textutil.tf</a>
   defines several unix-like commands that are particularly convenient when
   used with the <a href="../topics/substitution.html#%|">%|</a> pipe to
-  redirect their input or output.  For all commands that take an optional
-  <i>handle</i> argument, <a href="../topics/tfio.html">tfin</a> is used
-  if <i>handle</i> is omitted.
+  redirect their input or output.
+
+<p>
+  In the descriptions below, <i>filename</i> is the name of a file, and
+  <i>in</i> and <i>out</i> are handles of
+  <a href="../topics/tfio.html">tfio streams</a>.
+  When <i>in</i> is optional, its default is
+  <a href="../topics/tfio.html">tfin</a>.
 
 <p>
 <dl>
@@ -65,14 +71,14 @@
     </dl>
 
 <p>
-<dt><a href="../commands/textutil.html">/head</a> [-n<i>count</i>] [<i>handle</i>]
+<dt><a href="../commands/textutil.html">/head</a> [-n<i>count</i>] [<i>in</i>]
 <dd>Reads the first <i>count</i> (default 10) lines from
-    <i>handle</i> or <a href="../topics/tfio.html">tfin</a>
+    <i>in</i> or <a href="../topics/tfio.html">tfin</a>
     and writes them to <a href="../topics/tfio.html">tfout</a>.
 
 <p>
-<dt><a href="../commands/textutil.html">/wc</a> [-lwc] [<i>handle</i>]
-<dd>Reads lines from <i>handle</i> or <a href="../topics/tfio.html">tfin</a>
+<dt><a href="../commands/textutil.html">/wc</a> [-lwc] [<i>in</i>]
+<dd>Reads lines from <i>in</i> or <a href="../topics/tfio.html">tfin</a>
     and prints the count of lines, space-separated words, and characters
     that were read.
     <br><a href="../topics/options.html">Options</a>:
@@ -83,13 +89,19 @@
     </dl>
 
 <p>
-<dt><a href="../commands/textutil.html">/tee</a> <i>handle</i>
-<dd>Reads lines from <a href="../topics/tfio.html">tfin</a> and prints them
-    to <i>handle</i> and <a href="../topics/tfio.html">tfout</a>.
+<dt><a href="../commands/textutil.html">/tee</a> <i>out</i>
+<dd>Reads lines from <a href="../topics/tfio.html">tfin</a> and echoes them
+    to <i>out</i> and <a href="../topics/tfio.html">tfout</a>.
 
 <p>
 <dt><a href="../commands/textutil.html">/copyio</a> <i>in</i> <i>out</i>
-<dd>Reads lines from handle <i>in</i> and prints them to handle <i>out</i>.
+<dd>Reads lines from <i>in</i> and writes them to <i>out</i>.
+    This can be useful, for example, when you want to send text from a
+    <a href="../topics/tfio.html">tfio</a> stream to a
+    command that reads only <a href="../topics/tfio.html">tfin</a>:
+    <pre>
+    /copyio <i>in</i> o %| /<i>command</i>
+    </pre>
 
 <p>
 <dt><a href="../commands/textutil.html">/fmt</a>
@@ -102,8 +114,15 @@
 <dd>Copies <a href="../topics/tfio.html">tfin</a> to
     <a href="../topics/tfio.html">tfout</a>, with adjacent duplicate lines
     removed.
+
+<p>
+<dt><a href="../commands/textutil.html">/randline</a> [<i>in</i>]
+<dd>Copies one randomly selected line from
+    <i>in</i> or <a href="../topics/tfio.html">tfin</a>
+    to <a href="../topics/tfio.html">tfout</a>.
 </dl>
 
+<p>
 <hr>
 
 <p>
@@ -117,6 +136,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1998 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

@@ -46,8 +46,7 @@
 <p>
   The return value of the
   <a href="../commands/if.html">/IF</a>...<a href="../commands/if.html">/ENDIF</a>
-  statement is the return value of the last <i>expr</i> evaluated or
-  <i>list</i> executed.
+  statement is undefined.
 
 <p>
   <code> <a href="../commands/if.html">/IF</a> (expr) body%;
@@ -63,9 +62,9 @@
 <p>
   When <a href="../commands/if.html">/IF</a> is used on the command line,
   "<a href="../topics/substitution.html#%;">%;</a>" command separation is
-  done even if <a href="../topics/special_variables.html#sub">%sub</a>=off.
+  done even if <a href="../topics/special_variables.html#%sub">%sub</a>=off.
   Of course, full substitution will be done if
-  <a href="../topics/special_variables.html#sub">%sub</a>=full.
+  <a href="../topics/special_variables.html#%sub">%sub</a>=full.
 
 <p>
   If <i>list</i> is a server (mud) command, the condition being tested
@@ -84,10 +83,10 @@
 <p>
   Example:
 <pre>
-  <a href="../commands/if.html">/if</a> (<a href="../topics/special_variables.html#TERM">TERM</a> !~ "dumb") <a href="../topics/mode.html">/visual</a> on%; <a href="../commands/if.html">/endif</a>
+  <a href="../commands/if.html">/if</a> (<a href="../topics/special_variables.html#%TERM">TERM</a> !~ "dumb") <a href="../topics/mode.html">/visual</a> on%; <a href="../commands/if.html">/endif</a>
 </pre>
   will do "<code><a href="../topics/mode.html">/visual</a> on</code>" if your
-  <a href="../topics/special_variables.html#TERM">%{TERM}</a> is not "dumb".
+  <a href="../topics/special_variables.html#%TERM">%{TERM}</a> is not "dumb".
 
 <p>
   See: <a href="../topics/evaluation.html">evaluation</a>,
@@ -99,6 +98,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

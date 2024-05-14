@@ -1,6 +1,8 @@
 <title>TinyFugue: macros</title>
 <!--"@macros"-->
 <h1>macros</h1>
+  A <a href="../topics/macros.html">macro</a> is basically a named set of
+  commands.
   The simplest kind of <a href="../topics/macros.html">macro</a> has a name
   and a body.  The body is a list of one or more commands, separated by '%;'
   tokens.  These commands are executed when the
@@ -49,6 +51,8 @@
   <dt>body
           <dd>One or more commands to be executed when
           <a href="../topics/macros.html">macro</a> is called.
+	  The body is compiled to an efficient internal format the first
+	  time it is needed, so each future call can execute it more quickly.
 
 <p>
   <dt>number
@@ -103,15 +107,14 @@
 <p>
   <dt>worldtype
           <dd>the <a href="../topics/macros.html">macro</a> can only be
-          <a href="../topics/triggers.html">trigger</a>ed/hooked by
-          <a href="../topics/triggers.html">trigger</a>ed/<a href="../topics/hooks.html">hook</a>ed
+          <a href="../topics/triggers.html">trigger</a>ed/hooked
           by text/events from a particular type of world.
 
 <p>
   <dt>expression
           <dd>the <a href="../topics/macros.html">macro</a> can only be
           <a href="../topics/triggers.html">trigger</a>ed/<a href="../topics/hooks.html">hook</a>ed
-          if <a href="../topics/expression.html">expression</a> is non-zero.
+          if <a href="../topics/expressions.html">expression</a> is non-zero.
 
 <p>
   <dt>attributes
@@ -194,6 +197,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

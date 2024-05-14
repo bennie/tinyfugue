@@ -20,16 +20,16 @@
 
 <p>
   <a href="../commands/hook.html">/hook</a> with no arguments displays the
-  state of the <a href="../topics/special_variables.html#hook">%{hook}</a>
+  state of the <a href="../topics/special_variables.html#%hook">%{hook}</a>
   flag.  <a href="../commands/hook.html">/hook</a> with an argument of ON or
-  OFF sets the <a href="../topics/special_variables.html#hook">%{hook}</a>
+  OFF sets the <a href="../topics/special_variables.html#%hook">%{hook}</a>
   flag, which determines if <a href="../topics/hooks.html">hooks</a> will
   execute their associated <a href="../topics/macros.html">macros</a>.
 
 <p>
   The matching style of the <a href="../topics/hooks.html">hook</a> pattern
   is determined by
-  <a href="../topics/special_variables.html#matching">%{matching}</a>.  This
+  <a href="../topics/special_variables.html#%matching">%{matching}</a>.  This
   <a href="../topics/variables.html">variable</a> is examined when the
   <a href="../topics/hooks.html">hook</a> is defined, not when it is executed.
 
@@ -65,9 +65,9 @@
 <p>
   Example:
 <pre>
-  <a href="../commands/hook.html">/hook</a> MAIL = <a href="../commands/sh.html">/sh</a> elm
+  <a href="../commands/hook.html">/hook</a> MAIL = <a href="../commands/sh.html">/sh</a> mutt
 </pre>
-  will automatically invoke "elm" to read mail when it arrives.
+  will automatically invoke "mutt" to read mail when it arrives.
 
 <p>
   See: <a href="../topics/hooks.html">hooks</a>,
@@ -81,6 +81,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

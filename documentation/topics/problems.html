@@ -6,6 +6,8 @@
 <!--"@error"-->
 <!--"@report"-->
 <!--"@hawkeye"-->
+<!--"@kkeys"-->
+<!--"@kenkeys"-->
 <!--"@author"-->
 <!--"@support"-->
 <!--"@problems"-->
@@ -13,17 +15,12 @@
 
 <p>
   If you have an old version of TF, chances are your bug has already been
-  fixed.  The latest version of TF should be available for anonymous ftp from
-  tf.tcp.com in pub/tinyfugue.
+  fixed.  Current information and the latest version of TF can be found at
+  <a href="http://tinyfugue.sourceforge.net/">http://tinyfugue.sourceforge.net/</a>.
 
 <p>
-  Also see
-  <a href="http://tf.tcp.com/~hawkeye/tf/">http://tf.tcp.com/~hawkeye/tf/</a>
-  for the latest info on TF.  See "/help mailing list" for information
-  on how to subscribe to the tinyfugue mailing list.
-
-<p>
-  Send general bug reports, questions, etc, to hawkeye@tf.tcp.com.  For
+  For general bug reports, questions, etc, visit the website above (preferred),
+  or email kenkeys@users.sourceforge.net.  For
   problems specific to the OS/2 version, contact Andreas Sahlbach at
   asa@stardiv.de.  When reporting a problem or bug, please provide this
   information:
@@ -35,15 +32,19 @@
     "beta 4" or "the latest version".
 <li>The operating system name and version.  (On unix systems, type
     "<code>uname -a</code>" in the shell to get the exact version information.)
-<li>If tf won't install, send the Build.log file (UNIX only) if there is one,
-    or send a log of the installation errors (don't leave out parts just
-    because you don't know what they mean or think they're irrelevant).
-<li>If you have a bug or core, give me ALL messages from tf, not just the
-    last line.  Also tell me what you did or what happened before the problem,
+<li>If tf won't install, send the output of the installation process (on UNIX,
+    that's the output of configure and make).  Don't leave out parts just
+    because you don't know what they mean or think they're irrelevant.
+<li>If you have a bug or core:  do NOT send the core file, but do send
+    the debugging dump file (tf.<i>NNNNN</i>.dump) if tf generated one.
+    If not, give me ALL messages from tf (not just the last line).
+    In either case, tell me what you did or what happened before the problem,
     and whether the problem is repeatable.
-<li>If you have a core, do NOT send the core file.  But if you know how,
-    and tf was compiled with debugging option (usually '-g'), a stack
-    trace would be useful (use the 'where' command in gdb or dbx).  If you
+<li>Optional:  If you have a core, you know how to use a debugger,
+    tf was compiled with core dumps enabled, and tf did not generate a
+    debugging dump file, a manual stack
+    trace would be useful (use the 'bt full' command in gdb or 'where' in dbx).
+    If you
     don't know how, at least provide the other information described above.
 </ul>
 
@@ -52,8 +53,8 @@
 <ul>
 
 <li>
-  The <a href="../topics/special_variables.html#lp">%{lp}</a> and
-  <a href="../topics/special_variables.html#emulation">%{emulation}</a>
+  The <a href="../topics/special_variables.html#%lp">%{lp}</a> and
+  <a href="../topics/special_variables.html#%emulation">%{emulation}</a>
   <a href="../topics/variables.html">variables</a> should work on a
   per-<a href="../topics/sockets.html">socket</a>
   basis (This is partially overcome with WORLD
@@ -75,6 +76,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

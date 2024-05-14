@@ -3,10 +3,16 @@
 <h1>/prompt</h1>
 
 <p>
-  Usage:
+  <a href="../topics/functions.html">Function</a> usage:
 
 <p>
-  <a href="../commands/prompt.html">/PROMPT</a> <i>text</i><br>
+  <a href="../commands/prompt.html">PROMPT</a>(<i>text</i>)<br>
+
+<p>
+  Command usage:
+
+<p>
+  <a href="../commands/prompt.html">/PROMPT</a> [-a<i>attrs</i>] [-p] <i>text</i><br>
 <hr>
 
 <p>
@@ -14,6 +20,21 @@
   <a href="../topics/sockets.html#current">current</a>
   <a href="../topics/sockets.html">socket</a> to <i>text</i>,
   replacing any existing <a href="../topics/prompts.html">prompt</a>.
+
+<p>
+  Command <a href="../topics/options.html">options</a>:
+  <dl>
+  <dt><code>-a<i>attrs</i></code>
+	<dd>Apply the <a href="../topics/attributes.html">attributes</a>
+	given by <i>attrs</i> to <i>text</i>.
+  <dt><code>-p</code>
+	<dd>Interpet "<code>@{<i>attr</i>}</code>" strings within <i>text</i>
+	as commands to set <a href="../topics/attributes.html">attributes</a>
+	inline.
+	See <a href="../topics/functions.html#decode_attr">decode_attr()</a>.
+  </dl>
+
+<p>
   <a href="../commands/prompt.html">/prompt</a> is most useful when called
   from a PROMPT <a href="../topics/hooks.html">hook</a>, like this:
 <pre>
@@ -33,6 +54,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

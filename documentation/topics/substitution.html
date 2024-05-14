@@ -48,7 +48,7 @@
   escaping any special meaning <i>c</i> has; in particular, "\\" is
   substituted with "\".
   If the <a href="../topics/variables.html">variable</a>
-  <a href="../topics/special_variables.html#backslash">%{backslash}</a> is
+  <a href="../topics/special_variables.html#%backslash">%{backslash}</a> is
   off, the \<var>c</var> form does not have this special interpretation.
 
 <p>
@@ -58,11 +58,11 @@
 </h2>
 
 <p>
-  If <a href="../topics/special_variables.html#oldslash">%{oldslash}</a> is
+  If <a href="../topics/special_variables.html#%oldslash">%{oldslash}</a> is
   on, sequences of slashes are replaced with a sequence of one fewer slashes.
   A single slash, however, is left alone.  This feature remains for backward
   compatibility only; you are encouraged to turn
-  <a href="../topics/special_variables.html#oldslash">%{oldslash}</a> off to
+  <a href="../topics/special_variables.html#%oldslash">%{oldslash}</a> off to
   disable this.
 
 <p>
@@ -146,6 +146,8 @@ $$...<br>
 <a name="%n"></a>
 <a name="%0"></a>
 <a name="%1"></a>
+<a name="%-1"></a>
+<a name="%-n"></a>
 <a name="%R"></a>
 <a name="%L"></a>
 <a name="%*"></a>
@@ -211,12 +213,14 @@ $$...<br>
   <dt> L1, L2, etc.
           <dd>selects the last positional parameter, second-to-last, etc.
           "L" is the same as "L1".
+	  (As of 5.0 beta 7, these are case sensitive.)
 
 <p>
   <dt> -L1, -L2, etc.
           <dd>selects all positional parameters 
           except the last, all except the last two, etc.
           "-L" is the same as "-L1".
+	  (As of 5.0 beta 7, these are case sensitive.)
 
 <p>
   <dt> P<var>n</var>
@@ -225,17 +229,19 @@ $$...<br>
           <a href="../topics/patterns.html#regexp">regular expression</a>
           match.  See
           <a href="../topics/substitution.html#%Pn">%P<var>n</var></a>.
+	  (As of 5.0 beta 7, these are case sensitive.)
 
 <p>
   <dt> R
           <dd>selects a positional parameter at random.  (see also:
           <a href="../topics/functions.html#rand">rand()</a>)
+	  (As of 5.0 beta 7, this is case sensitive.)
   </dl>
 
 <p>
-  <a href="../topics/variables.html">Variable</a> names are case sensitive;
-  "L", "R", and "P" selectors are not.  No substitutions are performed on
-  <i>selector</i>.
+  <a href="../topics/variables.html">Variable</a> name and selectors are
+  case sensitive (prior to 5.0 beta 7, "L<var>n</var>", "P<var>n</var>" and "R"
+  selectors were not).  No substitutions are performed on <i>selector</i>.
 
 <p>
   If the substitution determined by the <i>selector</i> would be empty, and a
@@ -326,8 +332,8 @@ $$...<br>
   PL = "Jabba the Hutt"; P0 = " goes east."; P1 = "east".
 
 <p>
-  The number <i>n</i> can be anything from 0 to 9; other values will be
-  silently ignored.  If there is no subexpression corresponding to <i>n</i>,
+  The number <i>n</i> can be any nonnegative number.
+  If there is no subexpression corresponding to <i>n</i>,
   the substitution will be ignored.  When parentheses are nested, <i>n</i>
   refers to the order of the opening parentheses.
 
@@ -337,7 +343,7 @@ $$...<br>
   <a href="../topics/patterns.html#regexp">regexp</a>
   match on the line, even if a partial
   <a href="../topics/attributes.html">hilite</a>
-  (<a href="../commands/def.html">/def</a> -P) causes the
+  (<a href="../commands/def.html#-P">/def -P</a>) causes the
   <a href="../topics/patterns.html#regexp">regexp</a>
   to be applied more than once.
 
@@ -387,6 +393,6 @@ $$...<br>
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

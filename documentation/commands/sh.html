@@ -13,12 +13,12 @@
 <p>
   If no command is given, <a href="../commands/sh.html">/sh</a> and
   <a href="../commands/psh.html">/psh</a> execute an interactive shell
-  named by <a href="../topics/special_variables.html#SHELL">%{SHELL}</a>.
+  named by <a href="../topics/special_variables.html#%SHELL">%{SHELL}</a>.
   With a <i>command</i>, <a href="../commands/sh.html">/sh</a> will execute
   <i>command</i> in the default shell (/bin/sh on unix), and 
   <a href="../commands/psh.html">/psh</a> will execute <i>command</i>
   in the shell named by
-  <a href="../topics/special_variables.html#SHELL">%{SHELL}</a>.
+  <a href="../topics/special_variables.html#%SHELL">%{SHELL}</a>.
   <i>Command</i> is executed interactively,
   so it may accept input and may produce any output.
 
@@ -36,15 +36,16 @@
   be called, and the "Executing" line will not be printed.
 
 <p>
-  If the <a href="../topics/special_variables.html#shpause">%{shpause}</a>
-  flag is on, Fugue will wait for a keypress before returning.
+  If the <a href="../topics/special_variables.html#%shpause">%{shpause}</a>
+  and <a href="../topics/special_variables.html#%interactive">%{interactive}</a>
+  flags are on, TF will wait for a keypress before returning.
 
 <p>
   Note: calling <a href="../commands/sh.html">/sh</a> or
   <a href="../commands/psh.html">/psh</a> with arguments from a
   <a href="../topics/triggers.html">trigger</a> is very dangerous.  If not
   written carefully, such a <a href="../topics/triggers.html">trigger</a>
-  could allow anyone with access to the server to gain access to your shell
+  could allow anyone connected to the server to gain access to your shell
   account.
 
 <p>
@@ -63,6 +64,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

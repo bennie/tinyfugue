@@ -34,6 +34,8 @@
   <dt>-s
           <dd> List <a href="../topics/macros.html">macros</a> in short
           format.
+  <dt>-S
+          <dd> Sort <a href="../topics/macros.html">macros</a> by name.
   <dt>-m<i>matching</i>
           <dd>Determines matching style used for comparison of string fields
           (<a href="../topics/triggers.html">trigger</a>, keybinding, keyname,
@@ -41,7 +43,7 @@
           body).  This is <em>not</em> compared against the -m options of
           <a href="../topics/macros.html">macros</a>.  If omitted, the style
           is determined by
-          <a href="../topics/special_variables.html#matching">%{matching}</a>.
+          <a href="../topics/special_variables.html#%matching">%{matching}</a>.
   <dt>-t<i>pattern</i>
   <dt>-b<i>pattern</i>
   <dt>-B<i>pattern</i>
@@ -69,6 +71,11 @@
   <dt>-a<i>attrs</i>
           <dd>Matches <a href="../topics/macros.html">macros</a> having one
           or more of the display
+          <a href="../topics/attributes.html">attributes</a> in <i>attrs</i>.
+  <dt>-P<i>part</i><i>attrs</i>
+          <dd>Matches <a href="../topics/macros.html">macros</a> having a
+	  <a href="../commands/def.html#-P">-P</a><i>part</i>
+	  with one or more of the display
           <a href="../topics/attributes.html">attributes</a> in <i>attrs</i>.
   <dt>-i
           <dd> Matches invisible <a href="../topics/macros.html">macros</a>
@@ -123,13 +130,17 @@
 <p>
   Example:
 <pre>
-    <a href="../commands/list.html">/list</a> -mregexp -n0 -t -aurfdh ^foo =
+    <a href="../commands/list.html">/list</a> -mregexp -n0 -t -aurh ^foo =
 </pre>
   will list all <a href="../topics/macros.html">macros</a> whose names begin
   with "foo"; have a <a href="../topics/triggers.html">trigger</a>; are not
-  multi-shots; have any of the underline, reverse, flash, dim, or
+  multi-shots; have any of the underline, reverse, or
   <a href="../topics/attributes.html">hilite</a>
   <a href="../topics/attributes.html">attributes</a>; and have an empty body.
+
+<p>
+  To list functions for named keys, try
+  "<code><a href="../commands/list.html">/list</a> -i key_*</code>".
 
 <p>
   See: <a href="../topics/macros.html">macros</a>,
@@ -143,6 +154,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

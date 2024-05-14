@@ -3,16 +3,29 @@
 <h1>patterns</h1>
 
 <p>
-  Patterns are used in <a href="../topics/triggers.html">triggers</a>,
+  Patterns are used throughout TF, including
+  <a href="../topics/triggers.html">triggers</a>,
   <a href="../topics/hooks.html">hooks</a>,
   <a href="../commands/purge.html">/purge</a>,
-  <a href="../commands/list.html">/list</a>, and
-  <a href="../commands/recall.html">/recall</a>.  There are three styles of
-  pattern matching available: "simple" comparison, "glob" (similar to shell
-  filename patterns), and "regexp" (regular expressions).  The style used by
+  <a href="../commands/list.html">/list</a>,
+  <a href="../commands/limit.html">/limit</a>,
+  <a href="../commands/recall.html">/recall</a>, and
+  <a href="../topics/expressions.html">expressions</a>.
+  There are four styles of pattern matching available:
+  <dl>
+  <dt>simple
+    <dd>target string and pattern string must be identical
+  <dt>glob
+    <dd>similar to shell filename patterns
+  <dt>regexp
+    <dd>perl-compatible regular expressions
+  <dt>substr
+    <dd>target string must contain pattern string
+  </dl>
+  The style used by
   a particular command is determined either by the use of the -m option or
   the setting of the global <a href="../topics/variables.html">variable</a>
-  <a href="../topics/special_variables.html#matching">%{matching}</a>.
+  <a href="../topics/special_variables.html#%matching">%{matching}</a>.
 
 <p>
 <a name="comparison"></a>
@@ -25,6 +38,15 @@
   characters.  Case is significant.
 
 <p>
+<a name="substr"></a>
+<a name="contain"></a>
+<h2>Substring matching ("substr")</h2>
+
+<p>
+  The string must contain the pattern.  There are no special
+  characters.  Case is significant.
+
+<p>
 <a name="smatch"></a>
 <a name="globbing"></a>
 <a name="glob"></a>
@@ -33,7 +55,8 @@
 <p>
   Globbing is the default matching style, and was the only style available
   before version 3.2.  It is similar to filename expansion ("globbing") used
-  by many shells (but is only used for comparison, not expansion).
+  by many shells (but unlike shells, tf uses glob only for comparison,
+  not expansion).
 
 <p>
   There are several special sequences that can be used in tf globbing:
@@ -93,81 +116,48 @@
 <h2>Regular expressions ("regexp")</h2>
 
 <p>
-  The regexp package was written by Henry Spencer, and is similar to those
-  used in egrep and many text editors.  See also:
+  TF implements regular expressions with the package PCRE 2.08,
+  Copyright (c) 1997-1999 University of Cambridge.
+  The PCRE regexp syntax is documented on its own page under the topic
+  "<a href="../topics/pcre.html">pcre</a>".
+<p>
+  The syntax and semantics of these regular expressions is nearly identical
+  to those in perl 5, and is roughly a superset of those used in versions of
+  tf prior to 5.0.
+  There is one incompatability with old tf regexps:  the "{" character
+  is now special, and must be written "\{" to match a literal "{".
+  To help with the transition to the new syntax, you will be warned
+  if you use a regexp containing "{", unless you turn off the
+  <a href="../topics/special_variables.html#%warn_curly_re">warn_curly_re</a>
+  variable.
+<p>
+  If all letters in a regexp are lower case, the regexp will default to
+  using caseless matching.  If a regexp contains any upper case letters, it
+  will default to case-sensitive matching.  Of course, you can explicitly
+  specify caseless matching by including "(?i)" at the beginning of the regexp,
+  or case-sensitive by including "(?-i)".
+<p>
+  Regexps will honor the <a href="../topics/locale.html">locale</a> that
+  was set when the regexp was defined.
+  <a href="../topics/locale.html">Locale</a> affects caseless matching,
+  and determines whether characters are letters, digits, or whatever.
+  So, for example, while the regexp "[A-Za-z]" will match only English letters,
+  "[^\W\d_]" will match any letter defined by the
+  <a href="../topics/locale.html">locale</a>.
+<p>
+  After a regexp match, <a href="../topics/substitution.html#%Pn">%Pn</a>
+  substitutions can be used to get the value of the string that matched
+  various parts of the regexp.
+  See <a href="../topics/substitution.html#%Pn">%Pn</a>.
+<p>
+  For those of you who care about code details:
+  TF compiles PCRE regexps with the PCRE_DOLLAR_ENDONLY and PCRE_DOTALL
+  options.
+<p>
+  See also:
   <a href="../topics/functions.html#regmatch">regmatch()</a>,
-  <a href="../topics/substitution.html">substitution</a>.  The following
-  excerpt is taken from Henry Spencer's regexp(3) man page.
-<pre>
-     REGULAR EXPRESSION SYNTAX
-          A regular expression is zero or more branches, separated by
-          `|'.  It matches anything that matches one of the branches.
+  <a href="../topics/substitution.html">substitution</a>.
 
-          A branch is zero or more pieces, concatenated.  It matches a
-          match for the first, followed by a match for the second,
-          etc.
-
-          A piece is an atom possibly followed by `*', `+', or `?'.
-          An atom followed by `*' matches a sequence of 0 or more
-          matches of the atom.  An atom followed by `+' matches a
-          sequence of 1 or more matches of the atom.  An atom followed
-          by `?' matches a match of the atom, or the null string.
-
-          An atom is a regular expression in parentheses (matching a
-          match for the regular expression), a range (see below), `.'
-          (matching any single character), `^' (matching the null
-          string at the beginning of the input string), `$' (matching
-          the null string at the end of the input string), a `\'
-          followed by a single character (matching that character), or
-          a single character with no other significance (matching that
-          character).
-
-          A range is a sequence of characters enclosed in `[]'.  It
-          normally matches any single character from the sequence.  If
-          the sequence begins with `^', it matches any single
-          character not from the rest of the sequence.  If two
-          characters in the sequence are separated by `-', this is
-          shorthand for the full list of ASCII characters between them
-          (e.g. `[0-9]' matches any decimal digit).  To include a
-          literal `]' in the sequence, make it the first character
-          (following a possible `^').  To include a literal `-', make
-          it the first or last character.
-
-     AMBIGUITY
-          If a regular expression could match two different parts of
-          the input string, it will match the one which begins
-          earliest.  If both begin in the same place    but match
-          different lengths, or match the same length in different
-          ways, life gets messier, as follows.
-
-          In general, the possibilities in a list of branches are
-          considered in left-to-right order, the possibilities for
-          `*', `+', and `?' are considered longest-first, nested
-          constructs are considered from the outermost in, and
-          concatenated constructs are considered leftmost-first.  The
-          match that will be chosen is the one that uses the earliest
-          possibility in the first choice that has to be made.  If
-          there is more than one choice, the next will be made in the
-          same manner (earliest possibility) subject to the decision
-          on the first choice.  And so forth.
-
-          For example, `(ab|a)b*c' could match `abc' in one of two
-          ways.  The first choice is between `ab' and `a'; since `ab'
-          is earlier, and does lead to a successful overall match, it
-          is chosen.  Since the `b' is already spoken for, the `b*'
-          must match its last possibility-the empty string-since it
-          must respect the earlier choice.
-
-          In the particular case where no `|'s are present and there
-          is only one `*', `+', or `?', the net effect is that the
-          longest possible match will be chosen.  So `ab*', presented
-          with `xabbbby', will match `abbbb'.  Note that if `ab*' is
-          tried against `xabyabbbz', it will match `ab' just after
-          `x', due to the begins-earliest rule.  (In effect, the
-          decision on where to start the match is the first choice to
-          be made, hence subsequent choices must respect it even if
-          this leads them to less-preferred alternatives.)
-</pre>
 <h2>Comparison of glob and regexps.</h2>
 
 In a glob, '*' and '?' by themselves match text.
@@ -180,17 +170,16 @@ Globs are anchored, and must match the entire string.
 
 <pre>
     regexp		equivalent glob
-			(except for case)
     ------		-----------------
     "part of line"	"*part of line*"
     "^entire line$"	"entire line"
-    "(^| )word( |$)"	"*{word}*"
-    "^(You|Hawkeye) "	"{You|Hawkeye} *"
+    "\bword\b"		"*{word}*"
+    "^(you|hawkeye) "	"{you|hawkeye} *"
     "foo.*bar"		"*foo*bar*"
     "f(oo|00)d"		"*{*food*|*f00d*}*"
-    "line[0-9]"		"*line[0-9]*"
+    "line\d"		"*line[0-9]*"
     "^[^ ]+ whispers,"	"{*} whispers,*"
-    "foo(AB)?bar"	"*{*foobar*|*fooABbar*}*"
+    "foo(xy)?bar"	"*{*foobar*|*fooxybar*}*"
     "zoo+m"		none
     "foo ?bar"		none
     "(foo bar|frodo)"	none
@@ -199,18 +188,23 @@ Globs are anchored, and must match the entire string.
 <p>
 <h2>Notes.</h2>
 <ul>
-<li>For best speed, make the beginning of your patterns as specific as possible.
+<li>For best performance, make the beginning of your patterns as specific as
+    possible.
 <li>Do not use "<code>.*</code>" or "<code>^.*</code>" at the beginning of a
-regexp.  It is <em>very</em> inefficient, and not needed.  Use
-<a href="../topics/substitution.html#%Pn">%PL</a> instead if you need to
-retrieve the value of the left side.
-<li>If a glob and regexp can do the same job, use the glob, it's usually faster.
+    regexp.  It is <em>very</em> inefficient, and not needed.  Use
+    <a href="../topics/substitution.html#%Pn">%PL</a> instead if you need to
+    retrieve the substring to the left of the match.
+<li>If a glob and regexp can do the same job, the glob is usually
+    <em>slightly</em> faster.
+    But if using a glob instead of a regexp would mean you need some extra code,
+    then that extra code will cost much more than the regexp would have.
+    So if only a regexp can do what you need, don't hesitate to use it.
 </ul>
 
 <p>
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

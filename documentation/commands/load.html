@@ -55,7 +55,7 @@
 
 <p>
   The file may contain any legal TinyFugue commands.  Blank lines and lines
-  beginning with ';' are ignored.  Any leading whitespace on a line is
+  beginning with ';' or '#' are ignored.  Any leading whitespace on a line is
   stripped.  Any line ending in '\' will have the following line joined to
   it (after leading spaces are stripped).  A '%' preceding a '\' eliminates
   its special meaning.
@@ -76,10 +76,10 @@
   in the current directory (which can be changed with
   <a href="../commands/lcd.html">/lcd</a>), and then in the list of
   directories named by
-  <a href="../topics/special_variables.html#TFPATH">%{TFPATH}</a>.
-  If <a href="../topics/special_variables.html#TFPATH">%{TFPATH}</a> is
+  <a href="../topics/special_variables.html#%TFPATH">%{TFPATH}</a>.
+  If <a href="../topics/special_variables.html#%TFPATH">%{TFPATH}</a> is
   blank or unset, the single directory named by
-  <a href="../topics/special_variables.html#TFLIBDIR">%{TFLIBDIR}</a> is used.
+  <a href="../topics/special_variables.html#%TFLIBDIR">%{TFLIBDIR}</a> is used.
 
 <p>
   A <a href="../commands/load.html">/load</a> may be aborted early with
@@ -124,6 +124,6 @@
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

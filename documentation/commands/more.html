@@ -1,6 +1,8 @@
 <title>TinyFugue: /more</title>
 <!--"@scroll"-->
 <!--"@pager"-->
+<!--"@--more--"-->
+<!--"@--More--"-->
 <!--"@/more"-->
 <h1>/more</h1>
 
@@ -13,21 +15,42 @@
 
 <p>
   Sets the value of the
-  <a href="../topics/special_variables.html#more">%{more}</a> flag.  If the
-  <a href="../topics/special_variables.html#more">%{more}</a> flag is ON when
-  the screen or output window fills up, output will stop, and a --More--
-  prompt will be displayed.  With the default keybindings, TAB will scroll
-  one screenfull, ^[h will scroll a Half screen, ^[l will scroll one Line,
-  and ^[j will Jump to the end of the text, skipping all text which has been
-  received but not yet displayed.
+  <a href="../topics/special_variables.html#%more">%{more}</a> flag.  If the
+  <a href="../topics/special_variables.html#%more">%{more}</a> flag is ON when
+  the screen or output window fills up, output will stop, and a
+  "More" prompt will be displayed.
+  With the default keybindings,
+  TAB will scroll one screenful,
+  PgDn and PgUp will scroll a half screen forward or backward,
+  ^[^N and ^[^P will scroll one line forward or backward,
+  and ^[j will Jump to the last screenful.
+
+<p>
+  Regardless of the setting of the 
+  <a href="../topics/special_variables.html#%more">%more</a> flag, you can
+  use "<code><a href="../commands/dokey.html">/dokey</a> pause</code>" (^S)
+  at any time to pause the screen immediately, or use any of the scrolling
+  commands to scroll backward and forward.  After doing so, the "more"
+  prompt will remain until you reach the bottom line again; after that point,
+  newly displayed lines will obey the
+  <a href="../topics/special_variables.html#%more">%more</a> flag normally.
 
 <p>
   In <a href="../topics/mode.html">visual mode</a>,
-  with the default setting of
-  <a href="../topics/special_variables.html#status_fields">status_fields</a>,
-  the number of pending lines is displayed with the More prompt.
-  If the number of pending lines is 10000 or more, no number will be
-  displayed and the prompt will just say "MuchMore".
+  with the default <a href="../topics/status_line">status bar</a> settings,
+  the More prompt displays the number of old lines (i.e., how far you have
+  scrolled backwards) and the number of new lines you haven't had a chance to
+  see yet (i.e. lines that arrived since the More prompt first appeared).
+  If you have not scrolled backwards, only the count of new lines is shown,
+  so the More prompt looks the same as it would have in version 4.0.
+  If either count would not fit in the space allotted to it in the More prompt,
+  they may be displayed in units of thousands (e.g., "17523" would be shown as
+  "17k").
+
+<p>
+  Each <a href="../topics/socket.html">socket</a>
+  and open world <a href="../topics/world.html">world</a>
+  has its own window with its own "more" state.
 
 <p>
   If your terminal can't scroll in
@@ -36,15 +59,16 @@
 
 <p>
   See: <a href="../commands/dokey.html">/dokey</a>,
-  <a href="../topics/special_variables.html#more">%more</a>,
+  <a href="../topics/mode.html#visual">visual</a>,
+  <a href="../topics/special_variables.html#%more">%more</a>,
   <a href="../topics/functions.html#morescroll">morescroll()</a>,
   <a href="../topics/functions.html#moresize">moresize()</a>,
-  <a href="../topics/special_variables.html#status_fields">status_fields</a>
+  <a href="../topics/special_variables.html#%status_fields">status_fields</a>
 
 <p>
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

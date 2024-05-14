@@ -67,11 +67,11 @@
   The <i>text</i> which <a href="../topics/triggers.html">triggers</a> a
   <a href="../topics/macros.html">macro</a> is given to the
   <a href="../topics/macros.html">macro</a> as arguments, as if it had been
-  called with ``/<i>macro</i> <i>text</i>''.  Positional parameters refer
+  called with ``/<i>macro</i> <i>text</i>''.  Positional parameters
+  (e.g., <a href="../topics/substitution.html#%1">%1</a>) refer
   the the corresponding word in the
-  <a href="../topics/triggers.html">trigger</a>ing text (see also:
-  <a href="../topics/substitution.html">%n</a>).  If the
-  <a href="../topics/triggers.html">trigger</a> is a
+  <a href="../topics/triggers.html">trigger</a>ing text.
+  If the <a href="../topics/triggers.html">trigger</a> is a
   <a href="../topics/patterns.html#regexp">regexp</a>, subexpression
   parameters refer to the text matched by the corresponding parenthesised
   subexpression (see also:
@@ -96,20 +96,24 @@
 
 <p>
   <a href="../topics/triggers.html">Triggers</a> can be disabled by turning
-  the <a href="../topics/special_variables.html#borg">%{borg}</a> flag off.
+  the <a href="../topics/special_variables.html#%borg">%{borg}</a> flag off.
 
 <p>
   If the
-  <a href="../topics/special_variables.html#background">%{background}</a>
+  <a href="../topics/special_variables.html#%background">%{background}</a>
   flag is turned off, text from
   <a href="../topics/sockets.html#background">background</a>
   <a href="../topics/sockets.html">sockets</a> will not cause
   <a href="../topics/triggers.html">trigger</a>ing until that
-  <a href="../topics/sockets.html">socket</a> is brought into the <a href="../topics/sockets.html#foreground">foreground</a>.
+  <a href="../topics/sockets.html">socket</a> is brought into the
+    <a href="../topics/sockets.html#foreground">foreground</a>.
 
 <p>
   <a href="../topics/triggers.html">Triggers</a> can also be invoked manually
   with the command <a href="../commands/trigger.html">/trigger</a>.
+  The command "<a href="../commands/trigger.html">/trigger</a> -n"
+  can be used to test which <a href="../topics/triggers.html">triggers</a>
+  would match a given line.
 
 <p>
   The <a href="../commands/def.html">/def</a> command is the only way to
@@ -133,17 +137,28 @@
   <a href="../topics/hooks.html">hook</a>.
 
 <p>
-  Triggers are not expanded for variable substitutions or anything else.
-  To make a variable trigger, write a macro that redefines the trigger.
-  For example,
+  By default, TF expands tabs and removes ANSI display codes and other
+  non printable characters from received lines before comparing them
+  against <a href="../topics/triggers.html">triggers</a>, so your
+  <a href="../topics/triggers.html">triggers</a> need to match only
+  visible text.  But if you change 
+  <a href="../topics/special_variables.html#%expand_tabs">%expand_tabs</a>
+  or <a href="../topics/special_variables.html#%emulation">%emulation</a>,
+  received lines may still contain invisible codes when compared against
+  <a href="../topics/triggers.html">triggers</a>.
+
+<p>
+  Trigger patterns are not expanded for variable substitutions or anything else.
+  To get the effect of a variable trigger, write a macro that redefines the
+  trigger.  For example,
 
   <pre>
-    /def set_victim = \
-        /def -t"%{1} has arrived." kill_victim = \
-            kill %%{1}
+    <a href="../commands/def.html">/def</a> set_victim = \
+        <a href="../commands/def.html">/def</a> -t"<a href="../topics/substitution.html#%n">%{1}</a> has arrived." kill_victim = \
+            kill <a href="../topics/substitution.html#%%">%%</a>{1}
   </pre>
 
-  Then, to change the victim to "Bill", execute "/set_victim Bill".
+  Then, to change the victim to "Bill", type "/set_victim Bill".
 
 <p>
   See also: <a href="../topics/patterns.html">patterns</a>,
@@ -151,12 +166,13 @@
   <a href="../topics/gags.html">gags</a>,
   <a href="../topics/hilites.html">hilites</a>,
   <a href="../topics/hooks.html">hooks</a>,
-  <a href="../topics/priority.html">priority</a>
+  <a href="../topics/priority.html">priority</a>,
+  <a href="../topics/special_variables.html#%max_trig">%max_trig</a>
 
 <p>
 <!-- END -->
 <hr>
   <a href="./">Back to index</a><br>
-  <a href="http://tf.tcp.com/~hawkeye/tf/">Back to tf home page</a>
+  <a href="http://tinyfugue.sourceforge.net/">Back to tf home page</a>
 <hr>
-  <a href="../topics/copyright.html">Copyright</a> &copy; 1995 - 1999 <a href="http://tf.tcp.com/~hawkeye/">Ken Keys</a>
+  <a href="../topics/copyright.html">Copyright</a> &copy; 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 <a href="http://sourceforge.net/users/kenkeys/">Ken Keys</a>

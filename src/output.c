@@ -1,11 +1,11 @@
 /*************************************************************************
  *  TinyFugue - programmable mud client
- *  Copyright (C) 1993 - 1999 Ken Keys
+ *  Copyright (C) 1993, 1994, 1995, 1996, 1997, 1998, 1999, 2002, 2003, 2004, 2005, 2006-2007 Ken Keys
  *
  *  TinyFugue (aka "tf") is protected under the terms of the GNU
  *  General Public License.  See the file "COPYING" for details.
  ************************************************************************/
-/* $Id: output.c,v 35004.87 1999/01/31 00:27:49 hawkeye Exp $ */
+static const char RCSid[] = "$Id: output.c,v 35004.242 2007/01/14 00:44:19 kkeys Exp $";
 
 
 /*****************************************************************
@@ -19,21 +19,23 @@
 #define TERM_vt220	2
 #define TERM_ansi	3
 
-#include "config.h"
+#include "tfconfig.h"
 #include "port.h"
-#include "dstring.h"
 #include "tf.h"
 #include "util.h"
+#include "pattern.h"
+#include "search.h"
 #include "tfio.h"
 #include "socket.h"	/* fgprompt(), fgname() */
 #include "output.h"
+#include "attr.h"
 #include "macro.h"	/* add_ibind(), rebind_key_macros() */
-#include "search.h"
 #include "tty.h"	/* init_tty(), get_window_wize() */
 #include "variable.h"
 #include "expand.h"	/* current_command */
 #include "parse.h"	/* expr_value_safe() */
 #include "keyboard.h"	/* keyboard_pos */
+#include "cmdlist.h"
 
 #ifdef EMXANSI
 # define INCL_VIO
@@ -56,22 +58,18 @@
 #define DEFAULT_LINES   24
 #define DEFAULT_COLUMNS 80
 
-#ifdef HARDCODE
+#if HARDCODE
 # define origin 1      /* top left corner is (1,1) */
 # if HARDCODE == TERM_vt100
-#  define TERMCODE(id, vt100, vt220, ansi)   static CONST char *(id) = (vt100);
-# else
-#  if HARDCODE == TERM_vt220
-#   define TERMCODE(id, vt100, vt220, ansi)   static CONST char *(id) = (vt220);
-#  else
-#   if HARDCODE == TERM_ansi
-#    define TERMCODE(id, vt100, vt220, ansi)   static CONST char *(id) = (ansi);
-#   endif
-#  endif
+#  define TERMCODE(id, vt100, vt220, ansi)   static const char *(id) = (vt100);
+# elif HARDCODE == TERM_vt220
+#  define TERMCODE(id, vt100, vt220, ansi)   static const char *(id) = (vt220);
+# elif HARDCODE == TERM_ansi
+#  define TERMCODE(id, vt100, vt220, ansi)   static const char *(id) = (ansi);
 # endif
 #else /* !HARDCODE */
 # define origin 0      /* top left corner is (0,0) */
-# define TERMCODE(id, vt100, vt220, ansi)   static CONST char *(id) = NULL;
+# define TERMCODE(id, vt100, vt220, ansi)   static const char *(id) = NULL;
 #endif /* HARDCODE */
 
 /*				vt100		vt220		ansi */
@@ -98,8 +96,8 @@ TERMCODE (insert_char,		NULL,		"\033[@",	"\033[@")
 #endif
 TERMCODE (insert_start,		NULL,		NULL,		"\033[4h")
 TERMCODE (insert_end,		NULL,		NULL,		"\033[4l")
-TERMCODE (keypad_on,		"\033[?1h",	NULL,		NULL)
-TERMCODE (keypad_off,		"\033[?1l",	NULL,		NULL)
+TERMCODE (keypad_on,		"\033[?1h\033=",NULL,		NULL)
+TERMCODE (keypad_off,		"\033[?1l\033>",NULL,		NULL)
 TERMCODE (bell,			"\007",		"\007",		"\007")
 TERMCODE (underline,		"\033[4m",	"\033[4m",	"\033[4m")
 TERMCODE (reverse,		"\033[7m",	"\033[7m",	"\033[7m")
@@ -107,6 +105,7 @@ TERMCODE (flash,		"\033[5m",	"\033[5m",	"\033[5m")
 TERMCODE (dim,			NULL,		NULL,		NULL)
 TERMCODE (bold,			"\033[1m",	"\033[1m",	"\033[1m")
 TERMCODE (attr_off,		"\033[m",	"\033[m",	"\033[m")
+TERMCODE (attr_on,		NULL,		NULL,		NULL)
 /* these are only used if others are missing */
 TERMCODE (underline_off,	NULL,		NULL,		NULL)
 TERMCODE (standout,		NULL,		NULL,		NULL)
@@ -115,72 +114,77 @@ TERMCODE (standout_off,		NULL,		NULL,		NULL)
 /* end HARDCODE section */
 
 
-typedef struct status_field {
+/* If var==NULL and internal<0, the status is a constant string */
+typedef struct statusfield {
     char *name;
-    int internal;
-    Var *var;
+    stat_id_t internal;	/* index of internal status being watched */
+    Var *var;		/* variable being watched */
+    Var *fmtvar;	/* variable containing format expression */
+    Var *attrvar;	/* variable containing attribute string */
     int width;
     int rightjust;
     int column;
-    attr_t attrs;
+    int row;
+    attr_t attrs;	/* attibutes from status_fields */
+    attr_t vattrs;	/* attibutes from status_attr_{int,var}_<name> */
 } StatusField;
 
-#define true_status_pad (status_pad && *status_pad ? *status_pad : ' ')
+static Var bogusvar;   /* placeholder for StatusField->var */
 
-static void  NDECL(init_term);
-static int   FDECL(fbufputc,(int c));
-static void  NDECL(bufflush);
-static void  FDECL(tbufputs,(CONST char *str));
-static void  FDECL(tdirectputs,(CONST char *str));
-static void  FDECL(xy,(int x, int y));
-static void  NDECL(clr);
-static void  NDECL(clear_line);
-static void  NDECL(clear_input_line);
-static void  FDECL(clear_lines,(int start, int end));
-static void  NDECL(clear_input_window);
-static void  FDECL(setscroll,(int top, int bottom));
-static void  FDECL(scroll_input,(int n));
-static void  FDECL(ictrl_put,(CONST char *s, int n));
-static int   FDECL(ioutputs,(CONST char *str, int len));
-static void  FDECL(ioutall,(int kpos));
-static void  FDECL(format_status_field,(StatusField *field, attr_t *attrp));
-static void  FDECL(attributes_off,(attr_t attrs));
-static void  FDECL(attributes_on,(attr_t attrs));
-static void  FDECL(color_on,(long color));
-static void  FDECL(hwrite,(Aline *line, int start, int end));
-static int   FDECL(set_attr_var,(int idx, attr_t *attrp));
-static void  FDECL(set_attr,(Aline *aline, char *dest, attr_t *starting,
-             attr_t *current));
-static int   NDECL(check_more);
-static Aline *NDECL(wrapline);
-static void  NDECL(output_novisual);
+#define true_status_pad (status_pad && *status_pad ? *status_pad : ' ')
+#define sidescroll \
+    (intvar(VAR_sidescroll) <= Wrap/2 ? intvar(VAR_sidescroll) : Wrap/2)
+
+static void  init_term(void);
+static int   fbufputc(int c);
+static void  bufflush(void);
+static void  tbufputs(const char *str);
+static void  tdirectputs(const char *str);
+static void  xy(int x, int y);
+static void  clr(void);
+static void  clear_line(void);
+static void  clear_input_line(void);
+static void  clear_lines(int start, int end);
+static void  clear_input_window(void);
+static void  setscroll(int top, int bottom);
+static void  scroll_input(int n);
+static void  ictrl_put(const char *s, int n);
+static int   ioutputs(const char *str, int len);
+static void  ioutall(int kpos);
+static void  attributes_off(attr_t attrs);
+static void  attributes_on(attr_t attrs);
+static void  color_on(const char *prefix, long color);
+static void  hwrite(conString *line, int start, int len, int indent);
+static int   check_more(Screen *screen);
+static int   next_physline(Screen *screen);
+static void  output_novisual(PhysLine *pl);
 #ifdef SCREEN
-static void  NDECL(output_noscroll);
-static void  NDECL(output_scroll);
+static void  output_noscroll(PhysLine *pl);
+static void  output_scroll(PhysLine *pl);
 #endif
 
-static void  FDECL((*tp),(CONST char *str));
+static void  (*tp)(const char *str);
 
-#ifdef TERMCAP
+#if TERMCAP
 #define tpgoto(seq,x,y)  tp(tgoto(seq, (x)-1+origin, (y)-1+origin))
 #else
-#define tpgoto(seq,x,y)  Sprintf(outbuf,SP_APPEND,seq,(y)-1+origin,(x)-1+origin)
+#define tpgoto(seq,x,y)  Sappendf(outbuf,seq,(y)-1+origin,(x)-1+origin)
 #endif
 
 #define ipos()		xy(ix, iy)
 
 /* Buffered output */
 
+#define bufputStr(Str)		SStringcat(outbuf, Str)
 #define bufputs(s)		Stringcat(outbuf, s)
 #define bufputns(s, n)		Stringncat(outbuf, s, n)
 #define bufputc(c)		Stringadd(outbuf, c)
 #define bufputnc(c, n)		Stringnadd(outbuf, c, n)
-#define bufprintf1(f, p)	Sprintf(outbuf, SP_APPEND, f, p)
 
 #ifdef EMXANSI /* OS2 */
-   static void FDECL(crnl,(int n));  
+   static void crnl(int n);  
 #else
-# ifdef USE_SGTTY  /* CRMOD is off (tty.c) */
+# if USE_SGTTY  /* CRMOD is off (tty.c) */
 #  define crnl(count)  do { bufputc('\r'); bufputnc('\n', count); } while (0)
 # else             /* ONLCR is on (tty.c) */
 #  define crnl(count)  bufputnc('\n', count)
@@ -191,32 +195,40 @@ static void  FDECL((*tp),(CONST char *str));
 /* Others */
 
 #define Wrap (wrapsize ? wrapsize : columns)
-#define more_attrs (F_BOLD | F_REVERSE)
 #define moremin 1
 #define morewait 50
 
-TIME_T clock_update = 0;            /* when clock needs to be updated */
+String status_line[][1] = {	    /* formatted status lines, without alert */
+    STATIC_BUFFER_INIT, STATIC_BUFFER_INIT, STATIC_BUFFER_INIT,
+    STATIC_BUFFER_INIT, STATIC_BUFFER_INIT, STATIC_BUFFER_INIT };
+#define max_status_height   (sizeof(status_line)/sizeof(String))
+static StatusField *variable_width_field[max_status_height];
 
 STATIC_BUFFER(outbuf);              /* output buffer */
 static int top_margin = -1, bottom_margin = -1;	/* scroll region */
 static int cx = -1, cy = -1;        /* Real cursor ((-1,-1)==unknown) */
 static int ox = 1, oy = 1;          /* Output cursor */
 static int ix, iy;                  /* Input cursor */
-static int ystatus;                 /* line # of status bar */
+static int old_ix = -1;		    /* original ix before output clobbered it */
+static int in_top, in_bot;	    /* top & bottom line # of input window */
+#define out_top 1		    /* top line # of output window */
+static int out_bot;		    /* bottom line # of output window */
+static int stat_top, stat_bot;	    /* top & bottom line # of status area */
 static int istarty, iendy, iendx;   /* start/end of current input line */
-static Aline *moreprompt;           /* pager prompt */
-static Aline *prompt;               /* current prompt */
-static int outcount;                /* lines remaining until more prompt */
+static conString *prompt;           /* current prompt */
 static attr_t have_attr = 0;        /* available attributes */
-static Aline *currentline = NULL;   /* current logical line for printing */
-static int wrap_offset;             /* physical offset into currentline */
 static int screen_mode = -1;        /* -1=unset, 0=nonvisual, 1=visual */
 static int output_disabled = 1;     /* is it safe to oflush()? */
 static int can_have_visual = FALSE;
-static List status_field_list[1];
-static int status_left = 0, status_right = 0;  /* size of status line pieces */
-static attr_t hiliteattr = 0;
-static attr_t status_attr = 0;
+static int can_have_expnonvis = FALSE;
+static List statusfield_list[max_status_height][1];
+static int status_left[max_status_height];  /* size of status line left part */
+static int status_right[max_status_height]; /* size of status line right part */
+static int alert_row = 0;	    /* row of status area where alert appears */
+static int alert_pos = 0;	    /* column where alert appears */
+static int alert_len = 0;	    /* length of current alert message */
+
+STATIC_STRING(moreprompt, "--More--", F_BOLD | F_REVERSE);  /* pager prompt */
 
 #ifndef EMXANSI
 # define has_scroll_region (set_scroll_region != NULL)
@@ -225,7 +237,7 @@ static attr_t status_attr = 0;
 #endif
 
 
-#ifdef HARDCODE
+#if HARDCODE
 # if HARDCODE == TERM_vt100
 #  define KEYCODE(vt100, vt220, ansi)   (vt100)
 # else
@@ -242,7 +254,7 @@ static attr_t status_attr = 0;
 #endif
 
 typedef struct Keycode {
-    CONST char *name, *capname, *code;
+    const char *name, *capname, *code;
 } Keycode;
 
 static Keycode keycodes[] = {  /* this list is sorted by tolower(name)! */
@@ -286,9 +298,9 @@ static Keycode keycodes[] = {  /* this list is sorted by tolower(name)! */
     { "KP1",            "K1", KEYCODE( "\033Oq",   NULL,       NULL ) },
     { "KP2",            "K2", KEYCODE( "\033Or",   NULL,       NULL ) },
     { "KP3",            "K3", KEYCODE( "\033Os",   NULL,       NULL ) },
-    { "KP4",            "K4", KEYCODE( "\033Oq",   NULL,       NULL ) },
-    { "KP5",            "K5", KEYCODE( "\033Op",   NULL,       NULL ) },
-    { "Left",           "kl", KEYCODE( "\033On",   "\033[D",   "\033[D" ) },
+    { "KP4",            "K4", KEYCODE( "\033Op",   NULL,       NULL ) },
+    { "KP5",            "K5", KEYCODE( "\033Oq",   NULL,       NULL ) },
+    { "Left",           "kl", KEYCODE( "\033OD",   "\033[D",   "\033[D" ) },
     { "PgDn",           "kN", KEYCODE( NULL,       "\033[6~",  NULL ) },
     { "PgUp",           "kP", KEYCODE( NULL,       "\033[5~",  NULL ) },
     { "Right",          "kr", KEYCODE( "\033OC",   "\033[C",   "\033[C" ) },
@@ -302,42 +314,49 @@ static Keycode keycodes[] = {  /* this list is sorted by tolower(name)! */
 
 int lines   = DEFAULT_LINES;
 int columns = DEFAULT_COLUMNS;
-int need_refresh = 0;               /* does input need refresh? */
+ref_type_t need_refresh = 0;        /* does input need refresh? */
 int need_more_refresh = 0;          /* does visual more prompt need refresh? */
-int sockecho = TRUE;                /* echo input? */
-unsigned int tfscreen_size;         /* # of lines in tfscreen */
-int paused = FALSE;                 /* output paused */
+struct timeval alert_timeout = { 0, 0 };    /* when to clear alert */
+unsigned long alert_id = 0;
+struct timeval clock_update ={0,0}; /* when clock needs to be updated */
+PhysLine *plpool = NULL;	    /* freelist of PhysLines */
 
-#ifdef TERMCAP
-extern int   FDECL(tgetent,(char *buf, CONST char *name));
-extern int   FDECL(tgetnum,(CONST char *id));
-extern char *FDECL(tgetstr,(CONST char *id, char **area));
-extern char *FDECL(tgoto,(CONST char *code, int destcol, int destline));
-extern int   FDECL(tputs,(CONST char *cp, int affcnt, int (*outc)(int)));
+#if TERMCAP
+extern int   tgetent(char *buf, const char *name);
+extern int   tgetnum(const char *id);
+extern char *tgetstr(const char *id, char **area);
+extern char *tgoto(const char *code, int destcol, int destline);
+extern char *tparm(const char *code, ...);
+extern int   tputs(const char *cp, int affcnt, int (*outc)(int));
+static int   func_putchar(int c);
 #endif
 
 /****************************
  * BUFFERED OUTPUT ROUTINES *
  ****************************/
 
-static void bufflush()
+static void bufflush(void)
 {
-    if (outbuf->len) {
-        write(STDOUT_FILENO, outbuf->s, outbuf->len);
-        Stringterm(outbuf, 0);
+    int written = 0, result, n;
+    while (written < outbuf->len) {
+	n = outbuf->len - written;
+	if (n > 2048)
+	    n = 2048;
+        result = write(STDOUT_FILENO, outbuf->data + written, n);
+	if (result < 0) break;
+	written += result;
     }
+    Stringtrunc(outbuf, 0);
 }
 
-static int fbufputc(c)
-    int c;
+static int fbufputc(int c)
 {
     Stringadd(outbuf, c);
     return c;
 }
 
 #ifdef EMXANSI
-void crnl(n)
-    int n;
+void crnl(int n)
 {
     int off = (cy + n) - bottom_margin;
     if (off < 0 || !visual) off = 0;
@@ -350,8 +369,7 @@ void crnl(n)
 }
 #endif
 
-void dobell(n)
-    int n;
+void dobell(int n)
 {
     if (beep) {
         while (n--) bufputs(bell);
@@ -361,22 +379,32 @@ void dobell(n)
 
 /********************/
 
-int change_term()
+int change_term(Var *var)
 {
     fix_screen();
     init_term();
-    setup_screen(0);
+    redraw();
     rebind_key_macros();
     return 1;
 }
 
-/* Initialize output data. */
-void init_output()
+static void init_line_numbers(void)
 {
-    CONST char *str;
+    /* out_top = 1; */
+    out_bot = lines - isize - status_height;
+    stat_top = out_bot + 1;
+    stat_bot = out_bot + status_height;
+    in_top = stat_bot + 1;
+    in_bot = stat_bot + isize;
+}
+
+/* Initialize output data. */
+void init_output(void)
+{
+    const char *str;
+    int i;
 
     tp = tbufputs;
-    init_list(status_field_list);
     init_tty();
 
     /* Window size: clear defaults, then try:
@@ -385,14 +413,21 @@ void init_output()
     lines = ((str = getvar("LINES"))) ? atoi(str) : 0;
     columns = ((str = getvar("COLUMNS"))) ? atoi(str) : 0;
     if (lines <= 0 || columns <= 0) get_window_size();
-    ystatus = lines - isize;
+    init_line_numbers();
+    top_margin = 1;
+    bottom_margin = lines;
 
     prompt = fgprompt();
-    (moreprompt = new_aline("--More--", more_attrs))->links++;
+    old_ix = -1;
 
     init_term();
-    ch_hiliteattr();
-    setup_screen(-1);
+    for (i = 0; i < max_status_height; i++) {
+	init_list(statusfield_list[i]);
+	Stringninit(status_line[i], columns);
+	check_charattrs(status_line[i], columns, 0, __FILE__, __LINE__);
+    }
+
+    redraw();
     output_disabled = 0;
 }
 
@@ -400,17 +435,18 @@ void init_output()
  * TERMCAP ROUTINES *
  ********************/
 
-static void init_term()
+static void init_term(void)
 {
-#ifdef TERMCAP
+#if TERMCAP
     int i;
     /* Termcap entries are supposed to fit in 1024 bytes.  But, if a 'tc'
      * field is present, some termcap libraries will just append the second
      * entry to the original.  Also, some overzealous versions of tset will
      * also expand 'tc', so there might be *2* entries appended to the
-     * original.  And, linux termcap adds 'li' and 'co' fields, so it could
-     * get even longer.  To top it all off, some termcap libraries don't
-     * do any length checking in tgetent().  We should be safe with 4096.
+     * original.  And, newer termcap databases have additional fields (e.g.,
+     * linux adds 'li' and 'co'), so it could get even longer.  To top it all
+     * off, some termcap libraries don't do any length checking in tgetent().
+     * We should be safe with 4096.
      */
     char termcap_entry[4096];
     /* termcap_buffer will hold at most 1 copy of any field; 1024 is enough. */
@@ -419,18 +455,45 @@ static void init_term()
 
     have_attr = 0;
     can_have_visual = FALSE;
+    can_have_expnonvis = FALSE;
     clear_screen = clear_to_eos = clear_to_eol = NULL;
     set_scroll_region = insert_line = delete_line = NULL;
     delete_char = insert_char = insert_start = insert_end = NULL;
     enter_ca_mode = exit_ca_mode = cursor_address = NULL;
     keypad_on = keypad_off = NULL;
     standout = underline = reverse = flash = dim = bold = bell = NULL;
-    standout_off = underline_off = attr_off = NULL;
+    standout_off = underline_off = attr_off = attr_on = NULL;
+
+    {
+	/* Sanity check:  a valid termcap entry should end in ':'.  In
+	 * particular, csh and tcsh put a limit of 1023 bytes on the TERMCAP
+	 * variable, which may cause libpcap to give us garbage.  (I really
+	 * hate it when people blame tf for a bug in another program,
+	 * especially when it's the evil csh or tcsh.)
+	 */
+	const char *str, *shell;
+	int len, is_csh;
+	if ((str = getvar("TERMCAP")) && (len = strlen(str)) > 0) {
+	    is_csh = ((shell = getenv("SHELL")) && smatch("*csh", shell) == 0);
+	    if (str[len-1] != ':') {
+		wprintf("unsetting invalid TERMCAP variable%s.",
+		    is_csh ?  ", which appears to have been corrupted by your "
+		    "broken *csh shell" : "");
+		unsetvar(ffindglobalvar("TERMCAP"));
+	    } else if (len == 1023 && (!getenv("TF_FORCE_TERMCAP")) && is_csh) {
+		wprintf("unsetting the TERMCAP environment variable because "
+		    "it looks like it has been truncated by your broken *csh "
+		    "shell.  To force TF to use TERMCAP, restart TF with the "
+		    "TF_FORCE_TERMCAP environment variable set.");
+		unsetvar(ffindglobalvar("TERMCAP"));
+	    }
+	}
+    }
 
     if (!TERM || !*TERM) {
-        tfprintf(tferr, "%% Warning: TERM undefined.");
+        wprintf("TERM undefined.");
     } else if (tgetent(termcap_entry, TERM) <= 0) {
-        tfprintf(tferr, "%% Warning: \"%s\" terminal unsupported.", TERM);
+        wprintf("\"%s\" terminal unsupported.", TERM);
     } else {
         if (columns <= 0) columns = tgetnum("co");
         if (lines   <= 0) lines   = tgetnum("li");
@@ -461,6 +524,7 @@ static void init_term()
         underline_off	= tgetstr("ue", &area);
         standout_off	= tgetstr("se", &area);
         attr_off	= tgetstr("me", &area);
+        attr_on		= tgetstr("sa", &area);
 
         if (!attr_off) {
             /* can't exit all attrs, but maybe can exit underline/standout */
@@ -474,16 +538,26 @@ static void init_term()
 #if 0
             fprintf(stderr, "(%2s) %-12s = %s\n",
                 keycodes[i].capname, keycodes[i].name,
-                keycodes[i].code ? ascii_to_print(keycodes[i].code) : "NULL");
+                keycodes[i].code ? ascii_to_print(keycodes[i].code)->data : "NULL");
 #endif
         }
 
+	if (!keypad_off) keypad_on = NULL;
+
         if (strcmp(TERM, "xterm") == 0) {
-            /* Don't use secondary xterm buffer. */
-            enter_ca_mode = exit_ca_mode = NULL;
-            /* Many old xterm termcaps mistakenly omit "cs". */
-            if (!set_scroll_region && strcmp(TERM, "xterm") == 0)
+#if 0	    /* Now that tf has virtual screens, the secondary buffer is ok. */
+            enter_ca_mode = exit_ca_mode = NULL; /* Avoid secondary buffer. */
+#endif
+            /* Many old "xterm" termcaps mistakenly omit "cs". */
+            if (!set_scroll_region)
                 set_scroll_region = "\033[%i%d;%dr";
+        }
+        if (strcmp(TERM, "linux") == 0) {
+            /* Many "linux" termcaps mistakenly omit "ks" and "ke". */
+            if (!keypad_on && !keypad_off) {
+		keypad_on = "\033[?1h\033=";
+		keypad_off = "\033[?1l\033>";
+	    }
         }
     }
 
@@ -504,12 +578,12 @@ static void init_term()
 
     if (columns <= 0) columns = DEFAULT_COLUMNS;
     if (lines   <= 0) lines   = DEFAULT_LINES;
-    set_var_by_id(VAR_wrapsize, columns - 1, NULL);
-    outcount = lines;
+    set_var_by_id(VAR_wrapsize, columns - 1);
     ix = 1;
     can_have_visual = (clear_screen || clear_to_eol) && cursor_address;
-    set_var_by_id(VAR_scroll,
-        has_scroll_region||(insert_line&&delete_line), NULL);
+    can_have_expnonvis = delete_char && cursor_address;
+    set_var_by_id(VAR_scroll, has_scroll_region||(insert_line&&delete_line));
+    set_var_by_id(VAR_keypad, !!keypad_on);
     have_attr = F_BELL;
     if (underline) have_attr |= F_UNDERLINE;
     if (reverse)   have_attr |= F_REVERSE;
@@ -519,8 +593,7 @@ static void init_term()
     if (standout)  have_attr |= F_BOLD;
 }
 
-static void setscroll(top,bottom)
-    int top, bottom;
+static void setscroll(int top, int bottom)
 {
     if (top_margin == top && bottom_margin == bottom) return; /* optimization */
 #ifdef EMXANSI
@@ -535,8 +608,7 @@ static void setscroll(top,bottom)
     if (top != 1 || bottom != lines) set_refresh_pending(REF_PHYSICAL);
 }
 
-static void xy(x,y)
-    int x, y;
+static void xy(int x, int y)
 {
     if (x == cx && y == cy) return;                    /* already there */
     if (cy < 0 || cx < 0 || cx > columns) {            /* direct movement */
@@ -544,7 +616,8 @@ static void xy(x,y)
     } else if (x == 1 && y == cy) {                    /* optimization */
         bufputc('\r');
     } else if (x == 1 && y > cy && y < cy + 5 &&       /* optimization... */
-      cy >= top_margin && y <= bottom_margin) {        /* if '\n' is safe */
+        cy >= top_margin && y <= bottom_margin)        /* if '\n' is safe */
+    {
         /* Some broken emulators (including CYGWIN32 b18) lose
          * attributes when \r\n is printed, so we print \n\r instead.
          */
@@ -558,7 +631,7 @@ static void xy(x,y)
     cx = x;  cy = y;
 }
 
-static void clr()
+static void clr(void)
 {
     if (clear_screen)
         tp(clear_screen);
@@ -569,7 +642,7 @@ static void clr()
     cx = 1;  cy = 1;
 }
 
-static void clear_line()
+static void clear_line(void)
 {
     if (cx != 1) bufputc('\r');
     cx = 1;
@@ -581,42 +654,40 @@ static void clear_line()
     }
 }
 
-#ifdef TERMCAP
-static int fputchar(c)   /* in case broken lib has a macro but no function */
-    int c;
+#if TERMCAP
+/* in case broken lib defines a putchar macro but not a putchar function */
+/* Note: WATCOM compiler (QNX) has a function named fputchar. */
+static int func_putchar(int c)
 {
     return putchar(c);
 }
 #endif
 
-static void tdirectputs(str)
-    CONST char *str;
+static void tdirectputs(const char *str)
 {
     if (str)
-#ifdef TERMCAP
-        tputs(str, 1, fputchar);
+#if TERMCAP
+        tputs(str, 1, func_putchar);
 #else
         puts(str);
 #endif
 }
 
-static void tbufputs(str)
-    CONST char *str;
+static void tbufputs(const char *str)
 {
     if (str)
-#ifdef TERMCAP
+#if TERMCAP
         tputs(str, 1, fbufputc);
 #else
         bufputs(str);
 #endif
 }
 
-CONST char *get_keycode(name)
-    CONST char *name;
+const char *get_keycode(const char *name)
 {
     Keycode *keycode;
 
-    keycode = (Keycode *)binsearch(name, keycodes, N_KEYCODES,
+    keycode = (Keycode *)bsearch(name, keycodes, N_KEYCODES,
         sizeof(Keycode), cstrstructcmp);
     return !keycode ? NULL : keycode->code ? keycode->code : "";
 }
@@ -625,430 +696,1430 @@ CONST char *get_keycode(name)
  * WINDOW HANDLING *
  *******************/
 
-void setup_screen(addlines)
-    int addlines;  /* # of lines to scroll (-1 == default) */
+void setup_screen(void)
 {
-    top_margin = 1;
-    bottom_margin = lines;
-    if (addlines < 0) addlines = isize;
+    setscroll(1, lines);
     output_disabled++;
 
     if (visual && (!can_have_visual)) {
         eprintf("Visual mode is not supported on this terminal.");
-        set_var_by_id(VAR_visual, 0, NULL);
-    } else if (visual && (lines < 3 || columns < status_left + status_right)) {
+        set_var_by_id(VAR_visual, 0);  /* XXX recursion problem?? */
+    } else if (visual && lines < 1/*input*/ + 1/*status*/ + 2/*output*/) {
         eprintf("Screen is too small for visual mode.");
-        set_var_by_id(VAR_visual, 0, NULL);
+        set_var_by_id(VAR_visual, 0);  /* XXX recursion problem?? */
     }
     screen_mode = visual;
 
     if (!visual) {
-        if (paused) prompt = moreprompt;
+        prompt = display_screen->paused ? moreprompt : fgprompt();
+	old_ix = -1;
 
 #ifdef SCREEN
     } else {
         prompt = fgprompt();
-        if (isize > lines - 2) set_var_by_id(VAR_isize, lines - 2, NULL);
-        ystatus = lines - isize;
-        outcount = ystatus - 1;
+	if (isize + status_height + 2 > lines) {
+	    if ((1 + status_height + 2) <= lines) {
+		set_var_by_id(VAR_isize, lines - (status_height + 2));
+	    } else {
+		set_var_by_id(VAR_isize, 1);
+		set_var_by_id(VAR_stat_height, lines - (isize + 2));
+	    }
+	}
+	init_line_numbers();
+#if 0
+        outcount = out_bot - out_top + 1;
+#endif
         if (enter_ca_mode) tp(enter_ca_mode);
     
-        if (scroll && (has_scroll_region || (insert_line && delete_line))) {
-            if (addlines) {
-                xy(1, lines);
-                crnl(addlines);
-            }
-        } else {
-            if (addlines) clr();
-            if (scroll) set_var_by_id(VAR_scroll, 0, NULL);
+        if (scroll && !(has_scroll_region || (insert_line && delete_line))) {
+            set_var_by_id(VAR_scroll, 0);
         }
-        update_status_line();
+        update_status_line(NULL);
         ix = iendx = oy = 1;
-        iy = iendy = istarty = ystatus + 1;
+        iy = iendy = istarty = in_top;
         ipos();
 #endif
     }
 
-    if (keypad_on) tp(keypad_on);
+    if (keypad && keypad_on)
+	tp(keypad_on);
 
     set_refresh_pending(REF_LOGICAL);
     output_disabled--;
 }
 
-int redraw()
+#define interesting(pl)  ((pl)->attrs & F_HWRITE || (pl)->charattrs)
+
+/* returns true if str passes filter */
+static int screen_filter(Screen *screen, conString *str)
 {
-    if (!visual) {
-        bufputnc('\n', lines);     /* scroll region impossible */
-    } else {
-        clr();
-    }
-    setup_screen(0);
-    return 1;
+    if (str == textdiv_str) return visual;
+    return (!screen->selflush || interesting(str))
+	&&
+	(!screen->filter_enabled ||
+	(screen->filter_attr ? interesting(str) :
+	patmatch(&screen->filter_pat, str, NULL) == screen->filter_sense));
 }
 
-int ch_status_fields()
+#define purge_old_lines(screen) \
+    do { \
+	if (screen->nlline > screen->maxlline) \
+	    f_purge_old_lines(screen); \
+    } while (0) \
+
+static void f_purge_old_lines(Screen *screen)
 {
-    char *s, *t, save;
-    int width, column, i = 0, varfound = 0;
-    STATIC_BUFFER(scratch);
-    ListEntry *last = status_field_list->tail;
-    StatusField *field;
     ListEntry *node;
+    PhysLine *pl;
 
-    /* validate and insert new fields */
-    Stringcpy(scratch, status_fields ? status_fields : "");
-    s = scratch->s;
-    width = 0;
-    while (1) {
-        field = NULL;
-        while(is_space(*s)) s++;
-        if (!*s) break;
-        field = XMALLOC(sizeof(*field));
-        field->name = NULL;
-        field->var = NULL;
-        field->attrs = 0;
-        field->rightjust = 0;
-        field->width = 0;
-        field->internal = -1;
-        i++;
-
-        if (is_quote(*s)) {                                /* string literal */
-            STATIC_BUFFER(buffer);
-            if (!stringliteral(buffer, &s)) {
-                eprintf("%S in status_fields", buffer);
-                goto ch_status_fields_error;
-            }
-            field->name = STRDUP(buffer->s);
-        } else if (*s == '@') {                            /* internal */
-            for (t = ++s; is_alnum(*s) || *s == '_'; s++);
-            save = *s;
-            *s = '\0';
-            field->internal = enum2int(t, enum_status,
-                "status_fields internal status");
-            if (field->internal < 0)
-                goto ch_status_fields_error;
-            field->name = STRDUP(t);
-            *s = save;
-        } else if (is_alnum(*s) || *s == '_') {             /* variable */
-            for (t = s++; is_alnum(*s) || *s == '_'; s++);
-            save = *s;
-            *s = '\0';
-            field->name = STRDUP(t);
-            *s = save;
-            field->var = ffindglobalvar(field->name);
-            if (!field->var) {
-                eprintf("variable '%s' is not defined.", field->name);
-                goto ch_status_fields_error;
-            }
-        } else {                                           /* blank */
-            field->name = NULL;
-        }
-
-        if (*s == ':') {
-            s++;
-            field->width = strtoint(&s);
-            if ((field->rightjust = field->width < 0))
-                field->width = -field->width;
-        }
-
-        if (*s == ':') {
-            for (t = s + 1; *s && !is_space(*s); s++);
-            save = *s;
-            *s = '\0';
-            field->attrs = parse_attrs(&t);
-            *s = save;
-            if (field->attrs < 0)
-                goto ch_status_fields_error;
-        }
-
-        if (*s && !is_space(*s)) {
-            eprintf("status_fields: garbage in field %d: %.8s", i, s);
-            goto ch_status_fields_error;
-        }
-
-        if (!field->width && !field->var && field->internal < 0 && field->name)
-            field->width = strlen(field->name);
-
-        if (field->width == 0) {
-            if (varfound) {
-                eprintf("Only one variable width field is allowed.");
-                goto ch_status_fields_error;
-            }
-            varfound++;
-        } else {
-            width += field->width;
-        }
-
-        inlist(field, status_field_list, status_field_list->tail);
+    /* Free old lines if over maximum and they're off the top of the screen.
+     * (Freeing them when they fall out of history doesn't work: a long-lived
+     * line from a different history could trap lines from the history
+     * corresponding to this screen.) */
+    node = screen->pline.head;
+    while (screen->nlline > screen->maxlline && node != screen->top) {
+	node = node->next;
+	pl = node->datum;
+	if (pl->start == 0) { /* beginning of a new lline */
+	    /* free all plines (corresponding to a single lline) above node */
+	    screen->nlline--;
+	    while (screen->pline.head != node) {
+		pl = unlist(screen->pline.head, &screen->pline);
+		conStringfree(pl->str);
+		pfree(pl, plpool, str);
+	    }
+	}
     }
+}
 
-    if (width > columns) {
-        eprintf("status width %d would be larger than screen", width);
-        goto ch_status_fields_error;
-    }
+/* Add a line to the bottom.  bot does not move if nothing below it matches
+ * filter. */
+static int nextbot(Screen *screen)
+{
+    PhysLine *pl;
+    ListEntry *bot;
+    int nback = screen->nback;
+    int passed_maxbot;
 
-    /* delete old fields and clean up referents */
-    for (node = last; node; node = last) {
-        last = node->prev;
-        field = (StatusField*)unlist(node, status_field_list);
-        if (field->var)
-            field->var->status = NULL;
-        if (field->name)
-            FREE(field->name);
-        FREE(field);
+    if (screen->bot) {
+	passed_maxbot = (screen->bot == screen->maxbot);
+	bot = screen->bot->next;
+    } else {
+	bot = screen->pline.head;
+	passed_maxbot = 1;
     }
-
-    /* update new fields */
-    for (node = status_field_list->head; node; node = node->next) {
-        field = (StatusField*)node->datum;
-        if (field->var)
-            field->var->status = field;
-    }
-
-    clock_update = -1;
-    status_left = status_right = 0;
-    column = 0;
-    for (node = status_field_list->head; node; node = node->next) {
-        field = (StatusField*)node->datum;
-        status_left = field->column = column;
-        if (field->width == 0) break;
-        column += field->width;
-    }
-    column = 0;
-    if (node) {
-        for (node = status_field_list->tail; node; node = node->prev) {
-            field = (StatusField*)node->datum;
-            if (field->width == 0) break;
-            status_right = -(field->column = (column -= field->width));
-        }
-    }
-
-    update_status_line();
-    return 1;
-
-ch_status_fields_error:
-    if (field) {
-        if (field->name) FREE(field->name);
-        FREE(field);
-    }
-    /* delete new fields */
-    if (last) {
-        for (node = last->next; node; node = last) {
-            last = node->next;
-            field = (StatusField*)unlist(node, status_field_list);
-            if (field->name) FREE(field->name);
-            FREE(field);
-        }
+    while (bot) {
+	pl = bot->datum;
+	nback--;
+	/* shouldn't need to recalculate visible, but there's a bug somewhere
+	 * in maintaining visible flags in (bot,tail] after /unlimit. */
+	if ((pl->visible = screen_filter(screen, pl->str))) {
+	    screen->bot = bot;
+	    screen->nback_filtered--;
+	    screen->nback = nback;
+	    if (passed_maxbot) {
+		screen->maxbot = bot;
+		screen->nnew_filtered--;
+		screen->nnew = nback;
+	    }
+	    if (!screen->top)
+		screen->top = screen->bot;
+	    screen->viewsize++;
+	    if (screen->viewsize >= winlines())
+		screen->partialview = 0;
+	    return 1;
+	}
+	if (bot == screen->maxbot)
+	    passed_maxbot = 1;
+	bot = bot->next;
     }
     return 0;
 }
 
-static void format_status_field(field, attrp)
-    StatusField *field;
-    attr_t *attrp;
+/* Add a line to the top.  top does not move if nothing above it matches
+ * filter. */
+static int prevtop(Screen *screen)
 {
-    STATIC_BUFFER(varname);
-    STATIC_BUFFER(scratch);
-    CONST char *expression, *old_command;
-    Value *val;
+    PhysLine *pl;
+    ListEntry *prev;
+
+    /* (top == NULL && bot != NULL) happens after clear_display_screen() */
+    if (!screen->bot) return 0;
+    prev = screen->top ? screen->top->prev : screen->bot;
+    while (prev) {
+	pl = prev->datum;
+	/* visible flags are not maintained above top, must recalculate */
+	if ((pl->visible = screen_filter(screen, pl->str))) {
+	    screen->top = prev;
+	    screen->viewsize++;
+	    if (screen->viewsize >= winlines())
+		screen->partialview = 0;
+	    return 1;
+	}
+	/* XXX optimize for pl's that share same ll */
+	prev = prev->prev;
+    }
+    return 0;
+}
+
+/* Remove a line from the bottom.  bot always moves. */
+static int prevbot(Screen *screen)
+{
+    ListEntry *node;
+    PhysLine *pl;
+    int viewsize_changed = 0;
+
+    if (!screen->bot) return 0;
+    while (screen->bot->prev) {
+	pl = (node = screen->bot)->datum;
+	/* visible flags are maintained in [top,bot], we needn't recalculate */
+	if (pl->visible) {
+	    /* line being knocked off was visible */
+	    screen->viewsize--;
+	    screen->nback_filtered += !pl->tmp;
+	    viewsize_changed = 1;
+	}
+	screen->bot = screen->bot->prev;
+	screen->nback += !pl->tmp;
+
+	if (pl->tmp) {
+	    /* line being knocked off was temporary */
+	    if (screen->maxbot == node)
+		screen->maxbot = screen->maxbot->prev;
+	    unlist(node, &screen->pline);
+	    conStringfree(pl->str);
+	    pfree(pl, plpool, str);
+	}
+
+	/* stop if the viewsize has changed and we've found a new visible bot */
+	pl = screen->bot->datum;
+	if (viewsize_changed && pl->visible)
+	    break;
+    }
+    return viewsize_changed;
+}
+
+/* Remove a line from the top.  top always moves. */
+static int nexttop(Screen *screen)
+{
+    PhysLine *pl;
+    ListEntry *newtop;
+    int viewsize_changed = 0;
+
+    if (!screen->top) return 0;
+    while (screen->top->next) {
+	pl = screen->top->datum;
+	newtop = screen->top->next;
+	/* visible flags are maintained in [top,bot], we needn't recalculate */
+	if (pl->visible) {
+	    /* line being knocked off was visible */
+	    screen->viewsize--;
+	    viewsize_changed = 1;
+	}
+	if (pl->tmp) {
+	    /* line being knocked off was temporary */
+	    unlist(screen->top, &screen->pline);
+	    conStringfree(pl->str);
+	    pfree(pl, plpool, str);
+	}
+	screen->top = newtop;
+
+	/* stop if the viewsize has changed and we've found a new visible top */
+	pl = screen->top->datum;
+	if (viewsize_changed && pl->visible)
+	    break;
+    }
+
+    purge_old_lines(screen);
+    return viewsize_changed;
+}
+
+/* recalculate counters and visible flags in (bot, tail] */
+static void screen_refilter_bottom(Screen *screen)
+{
+    PhysLine *pl;
+    ListEntry *node;
+
+    if (screen_has_filter(screen)) {
+	screen->nback_filtered = 0;
+	screen->nnew_filtered = 0;
+	node = screen->pline.tail;
+	for ( ; node != screen->maxbot; node = node->prev) {
+	    pl = node->datum;
+	    if ((pl->visible = screen_filter(screen, pl->str)))
+		screen->nnew_filtered++;
+	}
+	screen->nback_filtered = screen->nnew_filtered;
+	for ( ; node != screen->bot; node = node->prev) {
+	    pl = node->datum;
+	    if ((pl->visible = screen_filter(screen, pl->str)))
+		screen->nback_filtered++;
+	}
+    } else {
+	screen->nback_filtered = screen->nback;
+	screen->nnew_filtered = screen->nnew;
+    }
+}
+
+static int screen_refilter(Screen *screen)
+{
+    PhysLine *pl;
+    int want;
+    Screen oldscreen;
+    ListEntry *lowestvisible;
+
+    screen->needs_refilter = 0;
+    if (!screen->bot)
+	if (!(screen->bot = screen->pline.tail))
+	    return 0;
+    oldscreen = *screen;
+    /* NB: screen->bot should stay in the same place, for when the filter
+     * is removed or changed. */
+    lowestvisible = screen->bot;
+    while (!screen_filter(screen, (pl = lowestvisible->datum)->str)) {
+	pl->visible = 0;
+	lowestvisible = lowestvisible->prev;
+	if (!lowestvisible) {
+	    if (screen_has_filter(screen)) {
+		*screen = oldscreen; /* restore original state */
+		clear_screen_filter(screen);
+		screen_refilter(screen);
+	    }
+	    return 0;
+	}
+    }
+    (pl = lowestvisible->datum)->visible = 1;
+    /* recalculate top: start at bot and move top up until view is full */
+    screen->viewsize = 1;
+    screen->partialview = 0;
+    screen->top = lowestvisible;
+    want = winlines();
+    while ((screen->viewsize < want) && prevtop(screen))
+	/* empty loop */;
+
+    screen_refilter_bottom(screen);
+
+    return screen->viewsize;
+}
+
+int screen_has_filter(Screen *screen)
+{
+    return screen->filter_enabled || screen->selflush;
+}
+
+void clear_screen_filter(Screen *screen)
+{
+    screen->filter_enabled = 0;
+    screen->selflush = 0;
+    screen->needs_refilter = 1;
+}
+
+void set_screen_filter(Screen *screen, Pattern *pat, attr_t attr_flag,
+    int sense)
+{
+    if (screen->filter_pat.str)
+	free_pattern(&screen->filter_pat);
+    if (pat) screen->filter_pat = *pat;
+    screen->filter_attr = attr_flag;
+    screen->filter_sense = sense;
+    screen->filter_enabled = 1;
+    screen->selflush = 0;
+    screen->needs_refilter = 1;
+}
+
+int enable_screen_filter(Screen *screen)
+{
+    if (!screen->filter_pat.str && !screen->filter_attr)
+	return 0;
+    screen->filter_enabled = 1;
+    screen->selflush = 0;
+    screen->needs_refilter = 1;
+    return 1;
+}
+
+int winlines(void)
+{
+    return visual ? out_bot - out_top + 1 : lines - 1;
+}
+
+/* wraplines
+ * Split logical line <ll> into physical lines and append them to <plines>.
+ */
+static int wraplines(conString *ll, List *plines, int visible)
+{
+    PhysLine *pl;
+    int offset = 0, n = 0;
+
+    do {
+	palloc(pl, PhysLine, plpool, str, __FILE__, __LINE__);
+	pl->visible = visible;
+	pl->tmp = 0;
+	(pl->str = ll)->links++;
+	pl->start = offset;
+	pl->indent = wrapflag && pl->start && wrapspace < Wrap ? wrapspace : 0;
+	pl->len = wraplen(ll->data + offset, ll->len - offset, pl->indent);
+	offset += pl->len;
+	inlist(pl, plines, plines->tail);
+	n++;
+    } while (offset < ll->len);
+    return n;
+}
+
+static void rewrap(Screen *screen)
+{
+    PhysLine *pl;
+    ListEntry *node;
+    List old_pline;
+    int wrapped, old_bot_visible, old_maxbot_visible;
+
+    if (!screen->bot) return;
+    hide_screen(screen); /* delete temp lines */
+
+    old_pline.head = screen->pline.head;
+    old_pline.tail = screen->pline.tail;
+    screen->pline.head = screen->pline.tail = NULL;
+    screen->nnew = screen->nnew_filtered = 0;
+    screen->nback = screen->nback_filtered = 0;
+
+    pl = screen->bot->datum;
+    old_bot_visible = pl->start + pl->len;
+    pl = screen->maxbot->datum;
+    old_maxbot_visible = pl->start + pl->len;
+
+    /* XXX possible optimization: don't rewrap [head, top) until needed.
+     * [top, bot] is needed for display, and (bot, tail] is needed for
+     * nback and nnew. */
+
+    /* rewrap llines corresponding to [head, bot] */
+    do {
+	node = old_pline.head;
+	pl = unlist(old_pline.head, &old_pline);
+	if (pl->start == 0) {
+	    wrapped = wraplines(pl->str, &screen->pline, pl->visible);
+	    screen->npline += wrapped;
+	}
+	conStringfree(pl->str);
+	pfree(pl, plpool, str);
+    } while (node != screen->bot);
+
+    /* recalculate bot within last lline */
+    screen->bot = screen->pline.tail;
+    while (screen->bot->prev) {
+	pl = screen->bot->datum;
+	if (pl->start == 0 || pl->start < old_bot_visible) break;
+	screen->bot = screen->bot->prev;
+	screen->nback++;
+    }
+
+    /* rewrap llines corresponding to (bot, maxbot] */
+    while (node != screen->maxbot) {
+	node = old_pline.head;
+	pl = unlist(old_pline.head, &old_pline);
+	if (pl->start == 0) {
+	    wrapped = wraplines(pl->str, &screen->pline, pl->visible);
+	    screen->npline += wrapped;
+	    screen->nback += wrapped;
+	}
+	conStringfree(pl->str);
+	pfree(pl, plpool, str);
+    }
+
+    /* recalculate maxbot within last lline */
+    screen->maxbot = screen->pline.tail;
+    while (screen->maxbot->prev) {
+	pl = screen->maxbot->datum;
+	if (pl->start == 0 || pl->start < old_maxbot_visible) break;
+	screen->maxbot = screen->maxbot->prev;
+	screen->nnew++;
+    }
+
+    /* rewrap llines corresponding to (maxbot, tail] */
+    while (old_pline.head) {
+	pl = unlist(old_pline.head, &old_pline);
+	if (pl->start == 0) {
+	    wrapped = wraplines(pl->str, &screen->pline, pl->visible);
+	    screen->npline += wrapped;
+	    screen->nback += wrapped;
+	    screen->nnew += wrapped;
+	}
+	conStringfree(pl->str);
+	pfree(pl, plpool, str);
+    }
+
+    /* recalculate nback_filtered, nnew_filtered, viewsize, top */
+    /* XXX TODO: should honor screen->partialview */
+    screen_refilter(screen);
+
+    screen->scr_wrapflag = wrapflag;
+    screen->scr_wrapsize = Wrap;
+    screen->scr_wrapspace = wrapspace;
+    screen->scr_wrappunct = wrappunct;
+}
+
+int redraw_window(Screen *screen, int already_clear)
+{
+    if (screen->needs_refilter && !screen_refilter(screen))
+	return 0;
+
+    if (!already_clear)
+	clear_lines(1, visual ? out_bot : lines);
+
+    if (screen->scr_wrapflag != wrapflag ||
+	screen->scr_wrapsize != Wrap ||
+	screen->scr_wrapspace != wrapspace ||
+	screen->scr_wrappunct != wrappunct)
+    {
+	rewrap(screen);
+    } else {
+	/* if terminal height decreased or textdiv was inserted */
+	while (screen->viewsize > winlines())
+	    nexttop(screen);
+	/* if terminal height increased */
+	if (!screen->partialview) {
+	    while (screen->viewsize < winlines())
+		if (!prevtop(screen)) break;
+	}
+    }
+
+    if (!visual) xy(1, lines);
+
+    /* viewsize may be 0 after clear_display_screen(), even if bot != NULL
+     * or nplines > 0 */
+    if (screen->viewsize) {
+        PhysLine *pl;
+	ListEntry *node;
+	int first;
+
+        if (visual) xy(1, out_bot - (screen->viewsize - 1));
+
+	node = screen->top;
+	first = 1;
+	while (1) {
+	    pl = node->datum;
+	    if (pl->visible) {
+		if (!first) crnl(1);
+		first = 0;
+		hwrite(pl->str, pl->start,
+		    pl->len < Wrap - pl->indent ? pl->len : Wrap - pl->indent,
+		    pl->indent);
+	    }
+	    if (node == screen->bot)
+		break;
+	    node = node->next;
+        }
+	if (visual) {
+	    cx = 1; cy = out_bot;
+	} else {
+	    crnl(1);
+	    cx = 1; cy = lines;
+	}
+    }
+
+    bufflush();
+    old_ix = -1;
+    set_refresh_pending(REF_PHYSICAL);
+    ox = cx;
+    oy = cy;
+
+    return 1;
+}
+
+int redraw(void)
+{
+    alert_timeout = tvzero;
+    alert_pos = 0;
+    alert_len = 0;
+    if (visual) {
+	top_margin = bottom_margin = -1;  /* force scroll region reset */
+        clr();
+    } else {
+        bufputnc('\n', lines);     /* scroll region impossible */
+    }
+    setup_screen();
+
+    if (virtscreen) {
+	hide_screen(display_screen);
+	unhide_screen(display_screen);
+    }
+    return redraw_window(display_screen, 1);
+}
+
+static void clear_screen_view(Screen *screen)
+{
+    if (screen->bot) {
+	screen->top = screen->bot->next;
+	screen->viewsize = 0;
+	screen->partialview = 1;
+	reset_outcount(screen);
+    }
+}
+
+int clear_display_screen(void)
+{
+    if (!display_screen->bot) return 0;
+    clear_screen_view(display_screen);
+    return redraw_window(display_screen, 0);
+}
+
+static const char *parse_statusfield(StatusField *field, const char *s)
+{
+    const char *t;
+
+    memset(field, 0, sizeof(*field));
+    field->internal = -1;
+
+    if (is_quote(*s)) {                                /* string literal */
+	STATIC_BUFFER(buffer);
+	if (!stringliteral(buffer, &s)) {
+	    eprintf("%S", buffer);
+	    return NULL;
+	}
+	field->name = STRDUP(buffer->data);
+    } else if (*s == '@') {                            /* internal */
+	for (t = ++s; is_alnum(*s) || *s == '_'; s++);
+	field->name = strncpy(XMALLOC(s - t + 1), t, s - t);
+	field->name[s-t] = '\0';
+	field->internal = enum2int(field->name, 0, enum_status,
+	    "status_fields internal status");
+	FREE(field->name);
+	field->name = NULL;
+	if (field->internal < 0)
+	    return NULL;
+    } else if (is_alnum(*s) || *s == '_') {            /* variable */
+	for (t = s++; is_alnum(*s) || *s == '_'; s++);
+	field->name = strncpy(XMALLOC(s - t + 1), t, s - t);
+	field->name[s-t] = '\0';
+	field->var = &bogusvar;
+    } else {                                           /* blank */
+	field->name = NULL;
+    }
+
+    if (*s == ':') {
+	while (*++s == '-')
+	    field->rightjust = !field->rightjust;
+	field->width = strtoint(s, &s);
+    }
+
+    if (*s == ':') {
+	for (t = s + 1; *s && !is_space(*s); s++);
+	if (!parse_attrs(t, &field->attrs, ' '))
+	    return NULL;
+    }
+
+    if (*s && !is_space(*s)) {
+	eprintf("garbage in status field: %.8s", s);
+	return NULL;
+    }
+    return s;
+}
+
+static Var *status_var(const char *type, const char *suffix)
+{
+    STATIC_BUFFER(name);
+    Stringcat(Stringcat(Stringcpy(name, "status_"), type), suffix);
+    return findorcreateglobalvar(name->data);
+}
+
+conString *status_field_text(int row)
+{
+    ListEntry *node;
+    StatusField *f;
+    String *buf = Stringnew(NULL, columns, 0);
     int width;
 
-    output_disabled++;
-    Stringterm(scratch, 0);
-    if (field->internal >= 0 || field->var) {
-        Stringcpy(varname, "status_");
-        Stringcat(varname, field->var ? "var_" : "int_");
-        Stringcat(varname, field->name);
-        expression = getnearestvar(varname->s, NULL);
-        old_command = current_command;
-        if (expression) {
-            current_command = varname->s;
-        } else if (field->var) {
-            current_command = field->name;
-            expression = field->name;
+    if (row < 0 || row >= max_status_height)
+	return CS(buf);
+    for (node = statusfield_list[row]->head; node; node = node->next) {
+	if (node != statusfield_list[row]->head)
+	    Stringadd(buf, ' ');
+	f = (StatusField*)node->datum;
+	width = f->width;
+	if (f->internal >= 0) {
+	    Stringadd(buf, '@');
+	    SStringcat(buf, &enum_status[f->internal]);
+	} else if (f->var) {
+	    Stringcat(buf, f->var->val.name);
+	} else if (f->name) {
+	    Sappendf(buf, "\"%q\"", '"', f->name);
+	    if (width == strlen(f->name)) width = 0;
+	}
+	if (!width && !f->attrs && !f->rightjust)
+	    continue;
+	Stringadd(buf, ':');
+	if (width || f->rightjust)
+	    Sappendf(buf, "%s%d", f->rightjust ? "-" : "", width);
+	if (!f->attrs)
+	    continue;
+	Stringadd(buf, ':');
+	attr2str(buf, f->attrs);
+    }
+    return CS(buf);
+}
+
+static void regen_status_fields(int row)
+{
+    ListEntry *node;
+    StatusField *f;
+    int column;
+
+    /* finish calculations on status_fields_list */
+    for (node = statusfield_list[row]->head; node; node = node->next) {
+        f = (StatusField*)node->datum;
+        if (f->var) { /* f->var == &bogusvar */
+	    if (f->var == &bogusvar) {
+		f->var = findorcreateglobalvar(f->name);
+		FREE(f->name);
+		f->name = NULL;
+	    }
+            f->var->statuses++;
+	    f->fmtvar = status_var("var_", f->var->val.name);
+	    f->attrvar = status_var("attr_var_", f->var->val.name);
+	} else if (f->internal >= 0) {
+	    f->fmtvar = status_var("int_", enum_status[f->internal].data);
+	    f->attrvar = status_var("attr_int_", enum_status[f->internal].data);
+	} else {
+	    continue;
+	}
+	f->fmtvar->statusfmts++;
+	f->attrvar->statusattrs++;
+	if (ch_attr(f->attrvar))
+	    f->vattrs = f->attrvar->val.u.attr;
+    }
+
+    clock_update.tv_sec = 0;
+    variable_width_field[row] = NULL;
+    status_left[row] = status_right[row] = 0;
+    column = 0;
+    for (node = statusfield_list[row]->head; node; node = node->next) {
+        f = (StatusField*)node->datum;
+        status_left[row] = f->column = column;
+        if (f->width == 0) {
+	    variable_width_field[row] = f;
+	    break;
+	}
+        column += f->width;
+    }
+    column = 0;
+    if (node) {
+        for (node = statusfield_list[row]->tail; node; node = node->prev) {
+            f = (StatusField*)node->datum;
+            if (f->width == 0) break;
+            status_right[row] = -(f->column = (column -= f->width));
         }
-        val = expression ? expr_value_safe(expression) : NULL;
-        Stringcpy(scratch, valstr(val));
-        freeval(val);
+    }
+
+    if (row == 0) {
+	/* regenerate the value of %status_fields for backward compatibility */
+	conString *buf = status_field_text(row);
+	/* set_str_var_direct avoids error checking and recursion */
+	set_str_var_direct(&special_var[VAR_stat_fields], TYPE_STR, buf);
+    }
+
+    update_status_line(NULL);
+}
+
+static ListEntry *find_statusfield_by_template(StatusField *target,
+    int full_comparison, const char *label)
+{
+    ListEntry *node;
+    StatusField *f;
+    int row;
+
+    for (row = 0; row < status_height; row++) {
+	if (target->row >= 0 && row != target->row) continue;
+	for (node = statusfield_list[row]->head; node; node = node->next) {
+	    f = (StatusField*)node->datum;
+	    if (target->internal >= 0) {
+		if (target->internal != f->internal) continue;
+	    } else if (target->var) {
+		if (!f->var || strcmp(target->name, f->var->val.name) != 0)
+		    continue;
+	    } else if (target->name) {
+		if (!f->name || cstrcmp(target->name, f->name) != 0)
+		    continue;
+	    }
+	    if (full_comparison) {
+		if (target->width && target->width != f->width) continue;
+		if (target->attrs && target->attrs != f->attrs) continue;
+	    }
+	    return node;
+	}
+    }
+    if (label) {
+	eprintf(
+	    target->row<0 ? "%s: no such field" : "%s: no such field in row %d",
+	    label, target->row);
+    }
+    return NULL;
+}
+
+static ListEntry *find_statusfield_by_name(int row, const char *spec)
+{
+    ListEntry *result = NULL;
+    StatusField target;
+    if (parse_statusfield(&target, spec)) {
+	target.row = row;
+	result = find_statusfield_by_template(&target, TRUE, spec);
+    }
+    if (target.name) FREE(target.name);
+    return result;
+}
+
+int ch_status_int(Var *var)
+{
+    if (warn_status)
+	wprintf("the default value of %s has "
+	    "changed between tf version 4 and 5.", var->val.name);
+    return 1;
+}
+
+static void free_statusfield(StatusField *field)
+{
+    if (field->var && field->var != &bogusvar && !--field->var->statuses)
+	freevar(field->var);
+    if (field->fmtvar && !--field->fmtvar->statuses)
+	freevar(field->fmtvar);
+    if (field->attrvar && !--field->attrvar->statuses)
+	freevar(field->attrvar);
+    if (field->name)
+	FREE(field->name);
+    FREE(field);
+}
+
+static int status_add(int reset, int nodup, int row, ListEntry *where,
+    const char *s,
+    long spacer) /* spacer>0 goes after new field, spacer<0 goes before */
+{
+    int totwidth = 0, vwf_found = 0;
+    List newlist[1];
+    StatusField *field;
+
+    init_list(newlist);
+
+    if (!reset) {
+	vwf_found = !!variable_width_field[row];
+	totwidth = status_left[row] + status_right[row];
+    }
+
+    /* validate and insert new fields */
+    while (1) {
+        while(is_space(*s)) s++;
+        if (!*s) break;
+        field = XMALLOC(sizeof(*field));
+	if (!(s = parse_statusfield(field, s)))
+            goto status_add_error;
+	field->row = row;
+
+        if (!field->width && !field->var && field->internal < 0 && field->name)
+            field->width = strlen(field->name);
+
+	if (nodup && find_statusfield_by_template(field, FALSE, NULL)) {
+	    free_statusfield(field);
+	    continue;
+	}
+
+        if (field->width != 0) {
+            totwidth += field->width;
+	} else {
+	    if (vwf_found) {
+		eprintf("Only one variable width status field is allowed.");
+		goto status_add_error;
+	    }
+	    vwf_found = 1;
+	}
+
+	inlist(field, newlist, newlist->tail);
+    }
+
+    if (spacer && newlist->head && !reset && statusfield_list[row]->head) {
+        field = XCALLOC(sizeof(*field));
+        field->internal = -1;
+	field->row = row;
+	totwidth += (field->width = spacer < 0 ? -spacer : spacer);
+	inlist(field, newlist, spacer >= 0 ? NULL : newlist->tail);
+    }
+
+    if (totwidth > columns) {
+        wprintf("total status width (%d) is wider than screen (%d)",
+	    totwidth, columns);
+    }
+
+    if (reset) {
+	/* delete old fields and clean up referents */
+	while (statusfield_list[row]->head)
+	    free_statusfield(unlist(statusfield_list[row]->head,
+		statusfield_list[row]));
+	*statusfield_list[row] = *newlist;
+    } else {
+	/* insert new fields into list */
+	/* (We could be faster with ptr swapping, but this isn't critical) */
+	while (newlist->head) {
+	    field = (StatusField*)unlist(newlist->head, newlist);
+	    where = inlist(field, statusfield_list[row], where);
+	}
+    }
+
+    regen_status_fields(row);
+    return 1;
+
+status_add_error:
+    free_statusfield(field);
+    while (newlist->head)
+	free_statusfield(unlist(newlist->head, newlist));
+    return 0;
+}
+
+struct Value *handle_status_add_command(String *args, int offset)
+{
+    int opt, nodup = FALSE, row = -1, reset = 0;
+    ValueUnion uval;
+    long spacer = 1;
+    const char *ptr, *before = NULL, *after = NULL;
+    ListEntry *where;
+
+    startopt(CS(args), "A:B:s#r#xc");
+    while ((opt = nextopt(&ptr, &uval, NULL, &offset))) {
+	switch (opt) {
+	case 'A':  after = STRDUP(ptr);   before = NULL;  break;
+	case 'B':  before = STRDUP(ptr);  after = NULL;   break;
+	case 's':  spacer = uval.ival;  break;
+	case 'r':  row = uval.ival;     break;
+	case 'x':  nodup = TRUE;  break;
+	case 'c':  reset = 1;     break;
+        default:   return shareval(val_zero);
+	}
+    }
+
+    if (after) {
+	if (*after) {
+	    where = find_statusfield_by_name(row, after);
+	    if (!where) return shareval(val_zero);
+	    row = ((StatusField*)(where->datum))->row;
+	} else {
+	    if (row < 0) row = 0;
+	    where = statusfield_list[row]->tail;
+	}
+	FREE(after);
+    } else if (before) {
+	spacer = -spacer;
+	if (*before) {
+	    where = find_statusfield_by_name(row, before);
+	    if (!where) return shareval(val_zero);
+	    row = ((StatusField*)(where->datum))->row;
+	    where = where->prev;
+	} else {
+	    if (row < 0) row = 0;
+	    where = NULL;
+	}
+	FREE(before);
+    } else {
+	if (row < 0) row = 0;
+	where = statusfield_list[row]->tail;
+    }
+
+    return shareval(
+	status_add(reset, nodup, row, where, args->data + offset, spacer) ?
+	val_one : val_zero);
+}
+
+int ch_status_fields(Var *var)
+{
+    if (warn_status) {
+	wprintf("setting status_fields directly is deprecated, "
+	    "and may clobber useful new features introduced in version 5.  "
+	    "The recommended way to change "
+	    "status fields is with /status_add, /status_rm, or /status_edit. "
+	    "(This warning can be disabled with \"/set warn_status=off\".)");
+    }
+    return status_add(TRUE, FALSE, 0, NULL,
+	status_fields ? status_fields : "", 0);
+}
+
+static int getspacer(ListEntry *node)
+{
+    StatusField *f;
+    if (!node) return 0;
+    f = node->datum;
+    return (f->var || f->internal >= 0 || f->name) ? 0 : f->width;
+}
+
+struct Value *handle_status_rm_command(String *args, int offset)
+{
+    ValueUnion uval;
+    long row = -1;
+    int opt;
+    ListEntry *node;
+
+    startopt(CS(args), "r#");
+    while ((opt = nextopt(NULL, &uval, NULL, &offset))) {
+	switch (opt) {
+	case 'r':  row = uval.ival; break;
+        default:   return shareval(val_zero);
+	}
+    }
+
+    node = find_statusfield_by_name(row, args->data + offset);
+    if (!node) return shareval(val_zero);
+    row = ((StatusField*)(node->datum))->row;
+    if (variable_width_field[row] == node->datum)
+	variable_width_field[row] = NULL;
+    if (!node->prev && getspacer(node->next)) {
+	unlist(node->next, statusfield_list[row]); /* remove leading spacer */
+    } else if (!node->next && getspacer(node->prev)) {
+	unlist(node->prev, statusfield_list[row]); /* remove trailing spacer */
+    } else if (getspacer(node->prev) && getspacer(node->next)) {
+	/* remove smaller of two neighboring spacers */
+	if (getspacer(node->prev) < getspacer(node->next))
+	    unlist(node->prev, statusfield_list[row]);
+	else
+	    unlist(node->next, statusfield_list[row]);
+    }
+    unlist(node, statusfield_list[row]);
+    regen_status_fields(row);
+    return shareval(val_one);
+}
+
+struct Value *handle_status_edit_command(String *args, int offset)
+{
+    ValueUnion uval;
+    long row = -1;
+    int opt;
+    StatusField *field;
+    ListEntry *node;
+
+    startopt(CS(args), "r#");
+    while ((opt = nextopt(NULL, &uval, NULL, &offset))) {
+	switch (opt) {
+	case 'r':  row = uval.ival; break;
+        default:   return shareval(val_zero);
+	}
+    }
+
+    field = XMALLOC(sizeof(*field));
+    if (!parse_statusfield(field, args->data + offset)) {
+	free_statusfield(field);
+	return shareval(val_zero);
+    }
+    field->row = row;
+    node = find_statusfield_by_template(field, FALSE, args->data + offset);
+    if (!node) {
+	free_statusfield(field);
+	return shareval(val_zero);
+    }
+    row = field->row = ((StatusField*)(node->datum))->row;
+    if (!field->width && variable_width_field[row] &&
+	node->datum != variable_width_field[row])
+    {
+	eprintf("Only one variable width status field per row is allowed.");
+	free_statusfield(field);
+	return shareval(val_zero);
+    }
+    free_statusfield(node->datum);
+    node->datum = field;
+    regen_status_fields(field->row);
+    return shareval(val_one);
+}
+
+/* returns column of field, or -1 if field is obscured by alert */
+static inline int statusfield_column(StatusField *field)
+{
+    int column;
+    if (field->column >= 0)
+	return (field->column > columns) ? columns : field->column;
+    column = field->column +
+	((status_left[field->row] + status_right[field->row] > columns) ?
+	status_left[field->row] + status_right[field->row] : columns);
+    return (column > columns) ? columns : column;
+}
+
+static int status_width(StatusField *field, int start)
+{
+    int width;
+    if (start >= columns) return 0;
+    width = (field->width == 0) ?
+	columns - status_right[field->row] - status_left[field->row] :
+	(field->width > 0) ? field->width : -field->width;
+    if (width > columns - start)
+        width = columns - start;
+    if (width < 0)
+	width = 0;
+    return width;
+}
+
+int handle_status_width_func(const char *name)
+{
+    /* XXX need to be able to specify row */
+    StatusField *field;
+    field = (StatusField*)find_statusfield_by_name(-1, name)->datum;
+    return field ? status_width(field, statusfield_column(field)) : 0;
+}
+
+static int format_statusfield(StatusField *field)
+{
+    STATIC_BUFFER(scratch);
+    const char *old_command;
+    Value *fmtval, *val = NULL;
+    Program *prog;
+    int width, x, i;
+
+    output_disabled++;
+    Stringtrunc(scratch, 0);
+    if (field->internal >= 0 || field->var) {
+        fmtval = getvarval(field->fmtvar);
+        old_command = current_command;
+        if (fmtval) {
+            current_command = fmtval->name;
+	    if (fmtval->type & TYPE_EXPR) {
+		prog = fmtval->u.prog;
+	    } else if (fmtval->type == TYPE_STR) {
+		prog = compile_tf(valstr(fmtval), 0, -1, 1, 2);
+		if ((fmtval->u.prog = prog))
+		    fmtval->type |= TYPE_EXPR;
+	    } else {
+		prog = compile_tf(valstr(fmtval), 0, -1, 1, 0);
+	    }
+	    if (prog) {
+		val = expr_value_safe(prog);
+		if (!(fmtval->type & TYPE_EXPR))
+		    prog_free(prog);
+	    }
+	    if (val) {
+		SStringcpy(scratch, valstr(val));
+		freeval(val);
+	    } else {
+		SStringcpy(scratch, blankline);
+	    }
+        } else if (field->var) {
+            current_command = field->var->val.name;
+            val = getvarval(field->var);
+            SStringcpy(scratch, val ? valstr(val) : blankline);
+        }
         current_command = old_command;
     } else if (field->name) {   /* string literal */
         Stringcpy(scratch, field->name);
     }
 
-    width = (field->width > 0) ? field->width :
-        columns - status_right - status_left;
-    if (width > columns - (cx - 1))
-        width = columns - (cx - 1);
+    x = statusfield_column(field);
+    width = status_width(field, x);
     if (scratch->len > width)
-        Stringterm(scratch, width);
+        Stringtrunc(scratch, width);
 
     if (field->rightjust && scratch->len < width) {          /* left pad */
-        if (*attrp != status_attr) {
-            if (*attrp) attributes_off(*attrp);
-            if (status_attr) attributes_on(status_attr);
-            *attrp = status_attr;
-        }
-        bufputnc(true_status_pad, width - scratch->len);
-        cx += width - scratch->len;
+	for (i = 0; i < width - scratch->len; i++, x++) {
+	    status_line[field->row]->data[x] = true_status_pad;
+	    status_line[field->row]->charattrs[x] = status_attr;
+	}
     }
 
     if (scratch->len) {                                      /* value */
-        if ((field->attrs | status_attr) != *attrp) {
-            if (*attrp) attributes_off(*attrp);
-            if ((field->attrs | status_attr))
-                attributes_on(field->attrs | status_attr);
-            *attrp = field->attrs | status_attr;
-        }
-        bufputs(scratch->s);  cx += scratch->len;
+        attr_t attrs = scratch->attrs;
+        attrs = adj_attr(attrs, status_attr);
+        attrs = adj_attr(attrs, field->attrs);
+        attrs = adj_attr(attrs, field->vattrs);
+	for (i = 0; i < scratch->len; i++, x++) {
+	    status_line[field->row]->data[x] = scratch->data[i];
+	    status_line[field->row]->charattrs[x] = scratch->charattrs ?
+		adj_attr(attrs, scratch->charattrs[i]) : attrs;
+	}
     }
 
     if (!field->rightjust && scratch->len < width) {         /* right pad */
-        if (*attrp != status_attr) {
-            if (*attrp) attributes_off(*attrp);
-            if (status_attr) attributes_on(status_attr);
-            *attrp = status_attr;
-        }
-        bufputnc(true_status_pad, width - scratch->len);
-        cx += width - scratch->len;
+	for (i = 0; i < width - scratch->len; i++, x++) {
+	    status_line[field->row]->data[x] = true_status_pad;
+	    status_line[field->row]->charattrs[x] = status_attr;
+	}
     }
 
     if (field->internal == STAT_MORE)
         need_more_refresh = 0;
     if (field->internal == STAT_CLOCK) {
         struct tm *local;
-        clock_update = time(NULL);
+	time_t sec = time(NULL);
         /* note: localtime()->tm_sec won't compile if prototype is missing */
-        local = localtime(&clock_update);
-        clock_update += 60 - local->tm_sec;
+        local = localtime(&sec);
+        clock_update.tv_sec = sec + 60 - local->tm_sec;
     }
 
+#if 0
     if (field->var && !field->var->status)   /* var was unset */
         field->var = NULL;
+#endif
     output_disabled--;
+    return width;
 }
 
-void update_status_field(var, internal)
-    Var *var;
-    int internal;
+static void display_status_segment(int row, int start, int width)
+{
+    if (!alert_len || row != alert_row ||
+	start + width <= alert_pos || start >= alert_pos + alert_len)
+    {
+	/* no overlap with alert */
+	xy(start + 1, stat_top + row);
+	hwrite(CS(status_line[row]), start, width, 0);
+    } else {
+	if (start < alert_pos) {
+	    /* segment starts left of alert */
+	    xy(start + 1, stat_top + row);
+	    hwrite(CS(status_line[row]), start, alert_pos - start, 0);
+	}
+	if (start + width >= alert_pos) {
+	    /* segment ends right of alert */
+	    xy(alert_pos + alert_len + 1, stat_top + row);
+	    hwrite(CS(status_line[row]), alert_pos + alert_len,
+		start + width - (alert_pos + alert_len), 0);
+	}
+    }
+}
+
+void update_status_field(Var *var, stat_id_t internal)
 {
     ListEntry *node;
     StatusField *field;
-    attr_t attrs;
+    int row, column, width;
+    int count = 0;
 
     if (screen_mode < 1) return;
 
-    for (node = status_field_list->head; node; node = node->next) {
-        field = (StatusField*)node->datum;
-        if (var && field->var != var) continue;
-        if (internal >= 0 && field->internal != internal) continue;
-
-        xy((field->column < 0 ? columns : 0) + field->column + 1,  ystatus);
-        attrs = 0;
-        format_status_field(field, &attrs);
-        if (attrs) attributes_off(attrs);
+    if (var && var->statusattrs) {
+	if (!ch_attr(var))
+	    return; /* error */
     }
 
-    bufflush();
-    set_refresh_pending(REF_PHYSICAL);
+    for (row = 0; row < status_height; row++) {
+	for (node = statusfield_list[row]->head; node; node = node->next) {
+	    field = (StatusField*)node->datum;
+	    if (var) {
+		if (field->var == var)
+		    /* do nothing */;
+		else if (field->fmtvar == var)
+		    /* do nothing */;
+		else if (field->attrvar == var) 
+		    field->vattrs = var->val.u.attr;
+		else
+		    continue;
+	    }
+	    if (internal >= 0 && field->internal != internal) continue;
+	    column = statusfield_column(field);
+	    if (column >= columns) /* doesn't fit, nor will any later fields */
+		break;
+	    count++;
+	    width = format_statusfield(field);
+	    display_status_segment(row, column, width);
+	}
+    }
+
+    if (count) {
+	bufflush();
+	set_refresh_pending(REF_PHYSICAL);
+    }
 }
 
-int update_status_line()
+void format_status_line(void)
 {
     ListEntry *node;
     StatusField *field;
-    int right = 0;
-    attr_t attrs = 0;
+    int row, column, width;
 
-    if (screen_mode < 1) return 1;
+    for (row = 0; row < status_height; row++) {
+	column = 0;
+	width = 0;
+	for (node = statusfield_list[row]->head; node; node = node->next) {
+	    field = (StatusField*)node->datum;
 
-    xy(1, ystatus);
+	    if ((column = statusfield_column(field)) >= columns)
+		break;
+	    width = format_statusfield(field);
+	}
 
-    for (node = status_field_list->head; node; node = node->next) {
-        field = (StatusField*)node->datum;
-
-        format_status_field(field, &attrs);
-        if (cx - 1 >= columns) break;
-
-        if (field->width == 0)
-            right = 1;
+	for (column += width; column < columns; column++) {
+	    status_line[row]->data[column] = true_status_pad;
+	    status_line[row]->charattrs[column] = status_attr;
+	}
     }
+}
 
-    if (cx - 1 < columns) {
-        if (attrs != status_attr) {
-            if (attrs) attributes_off(attrs);
-            if (status_attr) attributes_on(status_attr);
-        }
-        bufputnc(true_status_pad, columns - (cx - 1));
+int display_status_line(void)
+{
+    int row;
+
+    if (screen_mode < 1) return 0;
+
+    for (row = 0; row < status_height; row++) {
+	display_status_segment(row, 0, columns);
     }
-    if (attrs) attributes_off(attrs);
 
     bufflush();
     set_refresh_pending(REF_PHYSICAL);
     return 1;
 }
 
-/* used by %{visual}, %{isize}, SIGWINCH */
-int ch_visual()
+int update_status_line(Var *var)
 {
-    static int old_isize = 0;
-    int addlines;
+    /* XXX optimization:  some code that calls update_status_line() without
+     * any change in status_line could call display_status_line() directly,
+     * avoiding reformatting (in particular, status_{int,var}_* execution). */
+    format_status_line();
+    display_status_line();
+    return 1; /* for variable func */
+}
+
+void alert(conString *msg)
+{
+    int row = 0;
+    int new_pos, new_len;
+    ListEntry *node;
+    StatusField *field;
+    attr_t orig_attrs;
+
+    if (msg->attrs & F_GAG && gag)
+	return;
+    alert_id++;
+    msg->links++; /* some callers pass msg with links==0, so we ++ and free */
+    if (!visual) {
+	tfputline(msg, tferr);
+    } else {
+	/* default to position 0 */
+	new_pos = 0;
+	new_len = msg->len > Wrap ? Wrap : msg->len;
+	if (msg->len < Wrap) {
+	    /* if there's a field after @world, and msg fits there, use it */
+	    for (node = statusfield_list[row]->head; node; node = node->next) {
+		field = (StatusField*)node->datum;
+		if (field->internal == STAT_WORLD && node->next) {
+		    field = (StatusField*)node->next->datum;
+		    break;
+		}
+	    }
+	    if (node) {
+		new_pos = (field->column < 0 ? columns : 0) + field->column;
+		if (new_pos + new_len > Wrap)
+		    new_pos = 0;
+	    }
+	}
+
+	if (alert_len &&
+	    (alert_pos < new_pos || alert_pos + alert_len > new_pos + new_len))
+	{
+	    /* part of old alert would still be visible under new alert */
+	    /* XXX this could be optimized */
+	    clear_alert();
+	}
+
+	alert_len = new_len;
+	alert_pos = new_pos;
+
+	gettime(&alert_timeout);
+	tvadd(&alert_timeout, &alert_timeout, &alert_time);
+
+	xy(alert_pos + 1, stat_top + alert_row);
+	orig_attrs = msg->attrs;
+	msg->attrs = adj_attr(msg->attrs, alert_attr);
+	hwrite(msg, 0, alert_len, 0);
+	msg->attrs = orig_attrs;
+
+	bufflush();
+	set_refresh_pending(REF_PHYSICAL);
+    }
+    conStringfree(msg);
+}
+
+void clear_alert(void)
+{
+    if (!alert_len) return;
+    xy(alert_pos + 1, stat_top + alert_row);
+    hwrite(CS(status_line[alert_row]), alert_pos, alert_len, 0);
+    bufflush();
+    set_refresh_pending(REF_PHYSICAL);
+    alert_timeout = tvzero;
+    alert_pos = 0;
+    alert_len = 0;
+    alert_id = 0;
+}
+
+/* used by %{visual}, %{isize}, SIGWINCH */
+int ch_visual(Var *var)
+{
+    int need_redraw = 0, resized = 0, row;
+
+    for (row = 0; row < status_height; row++) {
+	if (status_line[row]->len < columns)
+	    Stringnadd(status_line[row], '?', columns - status_line[row]->len);
+	Stringtrunc(status_line[row], columns);
+    }
 
     if (screen_mode < 0) {                /* e.g., called by init_variables() */
-        addlines = -1;
-    } else if (visual != screen_mode) {   /* %visual changed */
-        addlines = isize;
-    } else if (!visual) {                 /* other changes have no effect */
-        addlines = -1;
+        return 1;
+    } else if (var == &special_var[VAR_visual]) {      /* %visual changed */
+        need_redraw = resized = 1;
+	alert_timeout = tvzero;
+	alert_pos = 0;
+	alert_len = 0;
+    } else if (var == &special_var[VAR_isize]) {      /* %isize changed */
+        need_redraw = resized = visual;
 #ifdef SCREEN
-    } else if (isize != old_isize) {      /* %isize changed */
-        if (ystatus > (lines - isize))        /* larger */
-            addlines = ystatus - (lines - isize);
-        else                                  /* smaller */
-            addlines = 0;
     } else {                              /* SIGWINCH */
-        /* Set ystatus to the top of the area fix_screen() must erase. */
-        if (strcmp(TERM, "xterm") != 0) {
-            /* not xterm: appearance is unknown, so start with a clear screen */
-            addlines = 0;
-            ystatus = 1;
-        } else if (ystatus + isize < lines) {
-            /* xterm grew: lines were added to top, so text moved down */
-            addlines = 0;
-            ystatus = lines - isize;
-        } else if (cy <= lines) {
-            /* xterm shrunk: 0 or more bottom lines were deleted */
-            addlines = (ystatus + isize) - lines;
-            ystatus = ystatus;
-        } else {
-            /* xterm shrunk: bottom lines deleted AND cursor&text moved up */
-            addlines = isize - (cy - ystatus);
-            ystatus = lines - (cy - ystatus);
-        }
-        cx = cy = -1;
+        need_redraw = 1;
+	resized = 1;
+        cx = cy = -1;  /* unknown */
+        top_margin = bottom_margin = -1;  /* unknown */
 #endif
     }
 
-    if (addlines >= 0) {
-        fix_screen();
-        setup_screen(addlines);
+    if (need_redraw)
+        redraw();
+    if (resized)
         transmit_window_size();
-    }
-    old_isize = isize;
     return 1;
 }
 
-void fix_screen()
+int ch_status_height(Var *var)
+{
+    if (status_height > max_status_height) {
+	eprintf("%s must be <= %d", var->val.name, max_status_height);
+	return 0;
+    }
+    if (visual) redraw();
+    transmit_window_size();
+    return 1;
+}
+
+int ch_expnonvis(Var *var)
+{
+    if (!can_have_expnonvis && expnonvis) {
+        eprintf("expnonvis mode is not supported on this terminal.");
+	return 0;
+    }
+    if (!visual) {
+	old_ix = -1;
+	redraw();
+    }
+    return 1;
+}
+
+/* used by %{wrap}, %{wrappunct}, %{wrapsize}, %{wrapspace} */
+int ch_wrap(Var *var)
+{
+    if (screen_mode < 0)	/* e.g., called by init_variables() */
+	return 1;
+
+    redraw_window(display_screen, 0);
+    transmit_window_size();
+    return 1;
+}
+
+void fix_screen(void)
 {
     oflush();
-    if (keypad_off) tp(keypad_off);
+    if (keypad && keypad_off)
+	tp(keypad_off);
     if (screen_mode <= 0) {
         clear_line();
 #ifdef SCREEN
     } else {
+	top_margin = bottom_margin = -1;  /* force scroll region reset */
         setscroll(1, lines);
-        clear_lines(ystatus, lines);
-        outcount = lines - 1;
-        xy(1, ystatus);
+        clear_lines(stat_top, lines);
+        xy(1, stat_top);
         if (exit_ca_mode) tp(exit_ca_mode);
 #endif
     }
@@ -1057,19 +2128,22 @@ void fix_screen()
     screen_mode = -1;
 }
 
-/* panic_fix_screen() avoids use of possibly corrupted structures. */
-void panic_fix_screen()
+/* minimal_fix_screen() avoids use of possibly corrupted structures. */
+void minimal_fix_screen(void)
 {
     tp = tdirectputs;
-    tfscreen->u.queue->head = tfscreen->u.queue->tail = NULL;
-    outbuf->s = "";
+    fg_screen = default_screen;
+    default_screen->pline.head = default_screen->pline.tail = NULL;
+    default_screen->top = default_screen->bot = NULL;
+    outbuf->data = NULL;
     outbuf->len = 0;
     outbuf->size = 0;
+    output_disabled++;
     fix_screen();
+    fflush(stdout);
 }
 
-static void clear_lines(start, end)
-    int start, end;
+static void clear_lines(int start, int end)
 {
     if (start > end) return;
     xy(1, start);
@@ -1086,17 +2160,17 @@ static void clear_lines(start, end)
 }
 
 /* clear entire input window */
-static void clear_input_window()
+static void clear_input_window(void)
 {
     /* only called in visual mode */
-    clear_lines(ystatus + 1, lines);
+    clear_lines(in_top, lines);
     ix = iendx = 1;
-    iy = iendy = istarty = ystatus + 1;
+    iy = iendy = istarty = in_top;
     ipos();
 }
 
 /* clear logical input line */
-static void clear_input_line()
+static void clear_input_line(void)
 {
     if (!visual) clear_line();
     else clear_lines(istarty, iendy);
@@ -1106,18 +2180,17 @@ static void clear_input_line()
 }
 
 /* affects iendx, iendy, istarty.  No effect on ix, iy. */
-static void scroll_input(n)
-    int n;
+static void scroll_input(int n)
 {
     if (n > isize) {
-        clear_lines(ystatus + 1, lines);
-        iendy = ystatus + 1;
+        clear_lines(in_top, lines);
+        iendy = in_top;
     } else if (delete_line) {
-        xy(1, ystatus + 1);
+        xy(1, in_top);
         for (iendy = lines + 1; iendy > lines - n + 1; iendy--)
             tp(delete_line);
     } else if (has_scroll_region) {
-        setscroll(ystatus + 1, lines);
+        setscroll(in_top, lines);
         xy(1, lines);
         crnl(n);  /* DON'T: cy += n; */
         iendy = lines - n + 1;
@@ -1136,9 +2209,7 @@ static void scroll_input(n)
  * display n characters of s, with control characters converted to printable
  * bold reverse (so the physical width is also n).
  */
-static void ictrl_put(s, n)
-    CONST char *s;
-    int n;
+static void ictrl_put(const char *s, int n)
 {
     int attrflag;
     char c;
@@ -1164,9 +2235,7 @@ static void ictrl_put(s, n)
  * which may be less than len if string doesn't fit in the input window.
  * precondition: iendx,iendy and real cursor are at the output position.
  */
-static int ioutputs(str, len)
-    CONST char *str;
-    int len;
+static int ioutputs(const char *str, int len)
 {
     int space, written;
 
@@ -1189,8 +2258,7 @@ static int ioutputs(str, len)
  * Performs ioutputs() for input buffer starting at kpos.
  * A negative kpos means to display that much of the end of the prompt.
  */
-static void ioutall(kpos)
-    int kpos;
+static void ioutall(int kpos)
 {
     int ppos;
 
@@ -1198,23 +2266,22 @@ static void ioutall(kpos)
         kpos = -(-kpos % Wrap);
         ppos = prompt->len + kpos;
         if (ppos < 0) ppos = 0;
-        hwrite(prompt, ppos, prompt->len);
+        hwrite(prompt, ppos, prompt->len - ppos, 0);
         iendx = -kpos + 1;
         kpos = 0;
     }
-    if (sockecho)
-        ioutputs(keybuf->s + kpos, keybuf->len - kpos);
+    if (sockecho())
+        ioutputs(keybuf->data + kpos, keybuf->len - kpos);
 }
 
-void iput(len)
-    int len;
+void iput(int len)
 {
-    CONST char *s;
+    const char *s;
     int count, scrolled = 0, oiex = iendx, oiey = iendy;
 
-    s = keybuf->s + keyboard_pos - len;
+    s = keybuf->data + keyboard_pos - len;
 
-    if (!sockecho) return;
+    if (!sockecho()) return;
     if (visual) physical_refresh();
 
     if (keybuf->len - keyboard_pos > 8 &&     /* faster than redisplay? */
@@ -1241,7 +2308,7 @@ void iput(len)
             cx = Wrap + 1;
             if (insert_start) tp(insert_start);
         }
-        while (s < keybuf->s + keybuf->len) {
+        while (s < keybuf->data + keybuf->len) {
             if (Wrap < columns && cx <= Wrap) {
                 xy(Wrap + 1, cy);
                 tp(clear_to_eol);
@@ -1268,11 +2335,26 @@ void iput(len)
     while (count = ioutputs(s, len), s += count, (len -= count) > 0) {
         scrolled++;
         if (!visual) {
-            crnl(1);  cx = 1;
-            iendx = ix = 1;
+	    if (expnonvis) {
+		int i;
+		int prompt_len = 0;
+		bufputc('\r');
+		if (prompt) {
+		    prompt_len = prompt->len % Wrap;
+		    hwrite(prompt, prompt->len - prompt_len, prompt_len, 0);
+		}
+		for (i = 0; i < sidescroll; i++)
+		    tp(delete_char);
+		iendx -= i;
+		cx = cy = -1;
+		xy(iendx, lines);
+	    } else {
+		crnl(1);  cx = 1;
+		iendx = ix = 1;
+	    }
         } else if (scroll && !clearfull) {
             scroll_input(1);
-            if (istarty > ystatus + 1) istarty--;
+            if (istarty > in_top) istarty--;
         } else {
             clear_input_window();
         }
@@ -1282,7 +2364,7 @@ void iput(len)
 
     if (insert || scrolled) {
         /* we must (re)display tail */
-        ioutputs(keybuf->s + keyboard_pos, keybuf->len - keyboard_pos);
+        ioutputs(keybuf->data + keyboard_pos, keybuf->len - keyboard_pos);
         if (visual) ipos();
         else { bufputnc('\010', iendx - ix);  cx -= (iendx - ix); }
 
@@ -1295,11 +2377,15 @@ void iput(len)
     bufflush();
 }
 
-void inewline()
+void inewline(void)
 {
     ix = iendx = 1;
     if (!visual) {
-        crnl(1);  cx = 1; cy++;
+	if (expnonvis) {
+	    clear_input_line();
+	} else {
+	    crnl(1);  cx = 1; cy++;
+	}
         if (prompt) set_refresh_pending(REF_PHYSICAL);
 
     } else {
@@ -1324,18 +2410,23 @@ void inewline()
 }
 
 /* idel() assumes place is in bounds and != keyboard_pos. */
-void idel(place)
-    int place;
+void idel(int place)
 {
     int len;
     int oiey = iendy;
 
     if ((len = place - keyboard_pos) < 0) keyboard_pos = place;
-    if (!sockecho) return;
+    if (!sockecho()) return;
     if (len < 0) ix += len;
     
     if (!visual) {
-        if (ix < 1 || need_refresh) {
+	int prompt_len = prompt ? prompt->len % Wrap : 0;
+        if (ix < prompt_len + 1 || need_refresh) {
+            physical_refresh();
+            return;
+        }
+        if (expnonvis && ix == prompt_len + 1 && keyboard_pos == keybuf->len) {
+	    /* there would be nothing left; slide the window so there is */
             physical_refresh();
             return;
         }
@@ -1347,7 +2438,7 @@ void idel(place)
             iy -= ((-ix) / Wrap) + 1;
             ix = Wrap - ((-ix) % Wrap);
         }
-        if (iy <= ystatus) {
+        if (iy < in_top) {
             logical_refresh();
             return;
         }
@@ -1381,7 +2472,7 @@ void idel(place)
             } else {
                 xy(iendx, iendy);
                 if (space > keybuf->len - pos) space = keybuf->len - pos;
-                ictrl_put(keybuf->s + pos, space);  cx += space;
+                ictrl_put(keybuf->data + pos, space);  cx += space;
             }
             iendx += space;
             pos += space;
@@ -1397,7 +2488,7 @@ void idel(place)
         /* redisplay method */
         iendx = ix;
         iendy = iy;
-        ioutputs(keybuf->s + keyboard_pos, keybuf->len - keyboard_pos);
+        ioutputs(keybuf->data + keyboard_pos, keybuf->len - keyboard_pos);
 
         /* erase tail */
         if (len > Wrap - cx + 1) len = Wrap - cx + 1;
@@ -1419,43 +2510,85 @@ void idel(place)
     bufflush();
 }
 
-int igoto(place)
-    int place;
+int igoto(int place)
 {
-    int diff, new;
+    int diff;
 
-    if (place < 0) {
+    if (place < 0)
         place = 0;
-        dobell(1);
-    }
-    if (place > keybuf->len) {
+    if (place > keybuf->len)
         place = keybuf->len;
-        dobell(1);
-    }
     diff = place - keyboard_pos;
     keyboard_pos = place;
 
-    if (!sockecho || !diff) {
+    if (!diff) {
+        /* no physical change */
+	dobell(1);
+
+    } else if (!sockecho()) {
         /* no physical change */
 
     } else if (!visual) {
+	int prompt_len = prompt ? prompt->len % Wrap : 0;
         ix += diff;
-        if (ix < 1) {
-            physical_refresh();
-        } else if (ix > Wrap) {
-            crnl(1);  cx = 1;  /* old text scrolls up, for continutity */
-            physical_refresh();
-        } else {
+        if (ix-1 < prompt_len) { /* off left edge of screen/prompt */
+	    if (expnonvis && insert_char && prompt_len - (ix-1) <= Wrap/2) {
+		/* can scroll, and amount of scroll needed is <= half screen */
+		int i, n;
+		bufputc('\r');
+		if (prompt)
+		    hwrite(prompt, prompt->len - prompt_len, prompt_len, 0);
+		n = prompt_len - (ix-1); /* get ix onto screen */
+		if (sidescroll > n) n = sidescroll; /* bring up to minimum */
+		if (n > keyboard_pos-diff) n = keyboard_pos-diff; /* too far? */
+		for (i = 0; i < n; i++)
+		    tp(insert_char);
+		ix += i;
+		ictrl_put(keybuf->data + keyboard_pos + prompt_len - (ix-1), i);
+                bufputnc('\010', (prompt_len + i) - (ix - 1));
+		cx = ix;
+		cy = lines;
+	    } else {
+		physical_refresh();
+	    }
+        } else if (ix > Wrap) { /* off right edge of screen */
+	    if (expnonvis) {
+		if (ix - Wrap > Wrap/2) {
+		    physical_refresh();
+		} else {
+		    /* amount of scroll needed is <= half screen */
+		    int offset = place - ix + iendx;
+		    int i;
+		    bufputc('\r');
+		    if (prompt)
+			hwrite(prompt, prompt->len - prompt_len, prompt_len, 0);
+		    for (i = 0; i < sidescroll || i < ix - Wrap; i++)
+			tp(delete_char);
+		    iendx -= i;
+		    ix -= i;
+		    cx = prompt_len + 1;
+		    cy = lines;
+		    xy(iendx, lines);
+		    ioutputs(keybuf->data + offset, keybuf->len - offset);
+		    diff -= i;
+		    offset += i;
+		    xy(ix, lines);
+		}
+	    } else {
+		crnl(1);  cx = 1;  /* old text scrolls up, for continutity */
+		physical_refresh();
+	    }
+        } else { /* on screen */
             cx += diff;
             if (diff < 0)
                 bufputnc('\010', -diff);
             else 
-                ictrl_put(keybuf->s + place - diff, diff);
+                ictrl_put(keybuf->data + place - diff, diff);
         }
 
     /* visual */
     } else {
-        new = (ix - 1) + diff;
+        int new = (ix - 1) + diff;
         iy += ndiv(new, Wrap);
         ix = nmod(new, Wrap) + 1;
 
@@ -1464,7 +2597,7 @@ int igoto(place)
             ioutall(place - (ix - 1) - (iy - lines - 1) * Wrap);
             iy = lines;
             ipos();
-        } else if ((iy < ystatus + 1) || (iy > lines)) {
+        } else if ((iy < in_top) || (iy > lines)) {
             logical_refresh();
         } else {
             ipos();
@@ -1475,29 +2608,48 @@ int igoto(place)
     return keyboard_pos;
 }
 
-void do_refresh()
+void do_refresh(void)
 {
     if (visual && need_more_refresh) update_status_field(NULL, STAT_MORE);
     if (need_refresh >= REF_LOGICAL) logical_refresh();
     else if (need_refresh >= REF_PHYSICAL) physical_refresh();
 }
 
-void physical_refresh()
+void physical_refresh(void)
 {
     if (visual) {
         setscroll(1, lines);
         ipos();
     } else {
+	int start;
+	int prompt_len = 0;
         clear_input_line();
-        ix = ((prompt?prompt->len:0) + (sockecho?keyboard_pos:0)) % Wrap + 1;
-        ioutall((sockecho?keyboard_pos:0) - (ix - 1));
+	if (prompt) {
+	    prompt_len = (prompt->len + 1) % Wrap - 1;
+	    hwrite(prompt, prompt->len - prompt_len, prompt_len, 0);
+	    iendx = prompt_len + 1;
+	}
+	ix = (sockecho()?keyboard_pos:0) % (Wrap - prompt_len) + 1 + prompt_len;
+        start = (sockecho()?keyboard_pos:0) - (ix - 1) + prompt_len;
+	if (start == keybuf->len && keybuf->len > 0) { /* would print nothing */
+	    /* slide window so something is visible */
+	    if (start > Wrap - prompt_len) {
+		ix += Wrap - prompt_len;
+		start -= Wrap - prompt_len;
+	    } else {
+		ix += start;
+		start = 0;
+	    }
+	}
+	ioutall(start);
         bufputnc('\010', iendx - ix);  cx -= (iendx - ix);
     }
     bufflush();
     if (need_refresh <= REF_PHYSICAL) need_refresh = 0;
+    old_ix = -1; /* invalid */
 }
 
-void logical_refresh()
+void logical_refresh(void)
 {
     int kpos, nix, niy;
 
@@ -1505,7 +2657,7 @@ void logical_refresh()
         oflush();  /* no sense refreshing if there's going to be output after */
 
     kpos = prompt ? -(prompt->len % Wrap) : 0;
-    nix = ((sockecho ? keyboard_pos : 0) - kpos) % Wrap + 1;
+    nix = ((sockecho() ? keyboard_pos : 0) - kpos) % Wrap + 1;
 
     if (visual) {
         setscroll(1, lines);
@@ -1523,29 +2675,52 @@ void logical_refresh()
         ipos();
     } else {
         clear_input_line();
-        ioutall(kpos);
-        kpos += Wrap;
-        while ((sockecho && kpos <= keyboard_pos) || kpos < 0) {
-            crnl(1);  cx = 1;
-            iendx = 1;
-            ioutall(kpos);
-            kpos += Wrap;
-        }
-        ix = nix;
-        bufputnc('\010', iendx - nix);  cx -= (iendx - nix);
+	if (expnonvis) {
+	    int plen = 0;
+	    if (prompt) {
+		plen = (prompt->len + 1) % Wrap - 1;
+		hwrite(prompt, prompt->len - plen, plen, 0);
+		iendx = plen + 1;
+	    }
+	    ix = (old_ix >= iendx && old_ix <= Wrap) ? old_ix :
+		(sockecho()?keyboard_pos:0) % (Wrap - plen) + 1 + plen;
+	    old_ix = -1; /* invalid */
+	    kpos = (sockecho()?keyboard_pos:0) - (ix - 1) + plen;
+	    if (kpos == keybuf->len && keybuf->len > 0) {
+		/* would print nothing; slide window so something is visible */
+		if (kpos > Wrap/2) {
+		    ix += Wrap/2;
+		    kpos -= Wrap/2;
+		} else {
+		    ix += kpos;
+		    kpos -= kpos;
+		}
+	    }
+	    ioutall(kpos);
+	} else {
+	    ioutall(kpos);
+	    kpos += Wrap;
+	    while ((sockecho() && kpos <= keyboard_pos) || kpos < 0) {
+		crnl(1);  cx = 1;
+		iendx = 1;
+		ioutall(kpos);
+		kpos += Wrap;
+	    }
+	    ix = nix;
+	}
+	bufputnc('\010', iendx - ix);  cx -= (iendx - ix);
     }
     bufflush();
     if (need_refresh <= REF_LOGICAL) need_refresh = 0;
 }
 
-void update_prompt(newprompt, display)
-    Aline *newprompt;
-    int display;
+void update_prompt(conString *newprompt, int display)
 {
-    Aline *oldprompt = prompt;
+    conString *oldprompt = prompt;
 
     if (oldprompt == moreprompt) return;
     prompt = newprompt;
+    old_ix = -1;
     if ((oldprompt || prompt) && display)
         set_refresh_pending(REF_LOGICAL);
 }
@@ -1561,10 +2736,9 @@ void update_prompt(newprompt, display)
  * Utilities *
  *************/
 
-static void attributes_off(attrs)
-    attr_t attrs;
+static void attributes_off(attr_t attrs)
 {
-    CONST char *cmd;
+    const char *ctlseq;
 
     if (attrs & F_HILITE) attrs |= hiliteattr;
     if (have_attr & attrs & F_SIMPLE) {
@@ -1574,48 +2748,58 @@ static void attributes_off(attrs)
             if (have_attr & attrs & F_BOLD     ) tp(standout_off);
         }
     }
-    if ((attrs & F_COLORS) && (cmd = getvar("end_color"))) {
-        bufputs(print_to_ascii(cmd));
+    if ((attrs & F_COLORS) && (ctlseq = getvar("end_color"))) {
+        print_to_ascii(outbuf, ctlseq);
     }
 }
 
-static void attributes_on(attrs)
-    attr_t attrs;
+static void attributes_on(attr_t attrs)
 {
     if (attrs & F_HILITE)
         attrs |= hiliteattr;
 
-    /* Some emulators only show the last, so we put the most important last. */
-    if (have_attr & attrs & F_DIM)       tp(dim);
-    if (have_attr & attrs & F_BOLD)      tp(bold ? bold : standout);
-    if (have_attr & attrs & F_UNDERLINE) tp(underline);
-    if (have_attr & attrs & F_REVERSE)   tp(reverse);
-    if (have_attr & attrs & F_FLASH)     tp(flash);
+#if 0
+    if (attr_on) {
+        /* standout, underline, reverse, blink, dim, bold, blank, prot., ACS */
+        tp(tparm(attr_on, 
+            (have_attr & attrs & F_BOLD && !bold),
+            (have_attr & attrs & F_UNDERLINE),
+            (have_attr & attrs & F_REVERSE),
+            (have_attr & attrs & F_FLASH),
+            (have_attr & attrs & F_DIM),
+            (have_attr & attrs & F_BOLD && bold),
+            0, 0, 0));
+        } else
+#endif
+    {
+        /* Some emulators only show the last, so we do most important last. */
+        if (have_attr & attrs & F_DIM)       tp(dim);
+        if (have_attr & attrs & F_BOLD)      tp(bold ? bold : standout);
+        if (have_attr & attrs & F_UNDERLINE) tp(underline);
+        if (have_attr & attrs & F_REVERSE)   tp(reverse);
+        if (have_attr & attrs & F_FLASH)     tp(flash);
+    }
 
-    if (attrs & F_FGCOLOR)  color_on(attr2fgcolor(attrs));
-    if (attrs & F_BGCOLOR)  color_on(attr2bgcolor(attrs));
+    if (attrs & F_FGCOLOR)  color_on("", attr2fgcolor(attrs));
+    if (attrs & F_BGCOLOR)  color_on("bg", attr2bgcolor(attrs));
 }
 
-static void color_on(color)
-    long color;
+static void color_on(const char *prefix, long color)
 {
-    CONST char *cmd;
+    const char *ctlseq;
     smallstr buf;
 
-    sprintf(buf, "start_color_%s", enum_color[color]);
-    if ((cmd = getvar(buf))) {
-        bufputs(print_to_ascii(cmd));
+    sprintf(buf, "start_color_%s%s", prefix, enum_color[color].data);
+    if ((ctlseq = getvar(buf))) {
+        print_to_ascii(outbuf, ctlseq);
     } else {
-        sprintf(buf, "start_color_%ld", color);
-        if ((cmd = getvar(buf))) {
-            bufputs(print_to_ascii(cmd));
-        }
+        sprintf(buf, "start_color_%s%ld", prefix, color);
+        if ((ctlseq = getvar(buf)))
+            print_to_ascii(outbuf, ctlseq);
     }
 }
 
-static void hwrite(line, start, end)
-    Aline *line;
-    int start, end;
+static void hwrite(conString *line, int start, int len, int indent)
 {
     attr_t attrs = line->attrs & F_HWRITE;
     attr_t current = 0;
@@ -1624,32 +2808,24 @@ static void hwrite(line, start, end)
     int col = 0;
     char c;
 
-    if (line->attrs & F_BELL) {
+    if (line->attrs & F_BELL && start == 0) {
         dobell(1);
     }
 
-    if (line->attrs & F_INDENT) {
-        bufputnc(' ', wrapspace);
-        cx += wrapspace;
+    if (indent) {
+        bufputnc(' ', indent);
+        cx += indent;
     }
 
-    cx += end - start;
+    cx += len;
 
-    if (!line->partials && hilite && attrs)
+    if (!line->charattrs && hilite && attrs)
         attributes_on(current = attrs);
 
-    for (i = start; i < end; ++i) {
-        new = attrs;
-        if (line->partials) {
-            /* turn off previous color bits before setting new ones */
-            if (new & line->partials[i] & F_FGCOLOR)
-                new &= ~F_FGCOLORMASK;
-            if (new & line->partials[i] & F_BGCOLOR)
-                new &= ~F_BGCOLORMASK;
-            new |= line->partials[i];
-        }
-        c = unmapchar(localize(line->str[i]));
-        ctrl = (emulation != EMUL_RAW && is_cntrl(c));
+    for (i = start; i < start + len; ++i) {
+        new = line->charattrs ? adj_attr(attrs, line->charattrs[i]) : attrs;
+        c = unmapchar(localize(line->data[i]));
+        ctrl = (emulation > EMUL_RAW && is_cntrl(c) && c != '\t');
         if (ctrl)
             new |= F_BOLD | F_REVERSE;
         if (new != current) {
@@ -1668,151 +2844,252 @@ static void hwrite(line, start, end)
     if (current) attributes_off(current);
 }
 
-void reset_outcount()
+void reset_outcount(Screen *screen)
 {
-    outcount = visual ? (scroll ? (ystatus - 1) : outcount) : lines - 1;
+    if (!screen) screen = display_screen;
+    screen->outcount = visual ?
+        (scroll ? (out_bot - out_top + 1) : screen->outcount) :
+        lines - 1;
 }
 
 /* return TRUE if okay to print */
-static int check_more()
+static int check_more(Screen *screen)
 {
-    if (!paused && more && !no_tty && outcount-- <= 0) {
+    if (!screen->paused && more && interactive && screen->outcount-- <= 0)
+    {
         /* status bar is updated in oflush() to avoid scroll region problems */
-        paused = 1;
+        screen->paused = 1;
         do_hook(H_MORE, NULL, "");
     }
-    return !paused;
+    return !screen->paused;
 }
 
-int clear_more(new)
-    int new;
+int pause_screen(void)
 {
-    if (!paused) return 0;
-    paused = 0;
-    outcount = new;
-    if (visual) {
-        update_status_field(NULL, STAT_MORE);
-        if (!scroll) outcount = ystatus - 1;
-    } else {
-        prompt = fgprompt();
-        clear_input_line();
+    if (display_screen->paused)
+	return 0;
+    display_screen->outcount = 0;
+    display_screen->paused = 1;
+    do_hook(H_MORE, NULL, "");
+    update_status_field(NULL, STAT_MORE);
+    return 1;
+}
+
+int clear_more(int new)
+{
+    PhysLine *pl;
+    int use_insert, need_redraw = 0, scrolled = 0;
+
+    if (new < 0) {
+	if (!visual /* XXX || !can_scrollback */) return 0;
+	use_insert = insert_line && -new < winlines();
+	setscroll(1, out_bot);
+	while (scrolled > new && prevtop(display_screen)) {
+	    pl = display_screen->top->datum;
+	    if (display_screen->viewsize <= winlines()) {
+		/* visible area is not full:  add to the top of visible area */
+		xy(1, winlines() - display_screen->viewsize + 1);
+		hwrite(pl->str, pl->start,
+		    pl->len < Wrap - pl->indent ? pl->len : Wrap - pl->indent,
+		    pl->indent);
+	    } else {
+		/* visible area is full:  insert at top and push bottom off */
+		display_screen->paused = 1;
+		display_screen->outcount = 0;
+		if (use_insert) {
+		    xy(1, 1);
+		    tp(insert_line);
+		    hwrite(pl->str, pl->start,
+			pl->len < Wrap-pl->indent ? pl->len : Wrap-pl->indent,
+			pl->indent);
+		} else {
+		    need_redraw++;
+		}
+		prevbot(display_screen);
+	    }
+	    scrolled--;
+	}
+	while (scrolled > new && display_screen->viewsize > 1) {
+	    /* no more lines in list to scroll on to top. insert blanks. */
+	    display_screen->paused = 1;
+	    display_screen->outcount = 0;
+	    if (use_insert) {
+		xy(1, 1);
+		tp(insert_line);
+	    } else {
+		need_redraw++;
+	    }
+	    prevbot(display_screen);
+	    scrolled--;
+	}
+	if (need_redraw) {
+	    redraw();
+	    return scrolled;
+	}
+	update_status_field(NULL, STAT_MORE);
+    } else { /* new >= 0 */
+	if (!display_screen->paused) return 0;
+	if (display_screen->nback_filtered) {
+	    if (visual) {
+		setscroll(1, out_bot);
+		if (cy != out_bot)
+		    xy(columns, out_bot);
+	    } else {
+		if (!need_refresh)
+		    old_ix = ix; /* physical_refresh() will restore ix */
+		clear_input_line();
+	    }
+	    while (scrolled < new && nextbot(display_screen)) {
+		pl = display_screen->bot->datum;
+		if (visual) output_scroll(pl); else output_novisual(pl);
+		scrolled++;
+	    }
+	}
+	while (display_screen->viewsize > winlines())
+	    nexttop(display_screen);
+	if (scrolled < new) {
+	    display_screen->paused = 0;
+	    display_screen->outcount = new - scrolled;
+	    if (visual) {
+		update_status_field(NULL, STAT_MORE);
+		if (!scroll) display_screen->outcount = out_bot;
+	    } else {
+		prompt = fgprompt();
+		old_ix = -1;
+		clear_input_line();
+	    }
+	}
     }
     set_refresh_pending(REF_PHYSICAL);
-    return 1;
+    return scrolled;
 }
 
-int tog_more()
+int tog_more(Var *var)
 {
-    if (!more) clear_more(outcount);
-    else reset_outcount();
+    if (!more) clear_more(display_screen->outcount);
+    else reset_outcount(display_screen);
     return 1;
 }
 
-int screen_flush(selective)
-    int selective;
+int tog_keypad(Var *var)
 {
-    ListEntry *node, *next;
-
-#define interesting(alin)  ((alin)->attrs & F_SIMPLE || (alin)->partials)
-
-    if (!paused) return 0;
-    outcount = visual ? ystatus - 1 : lines - 1;
-    for (node = tfscreen->u.queue->head; node; node = next) {
-        next = node->next;
-        if (!selective || !interesting((Aline*)node->datum)) {
-            free_aline((Aline*)unlist(node, tfscreen->u.queue));
-            tfscreen_size--;
-        }
+    if (!keypad_on) {
+	if (keypad)
+	    eprintf("don't know how to enable keypad on %s terminal", TERM);
+	return 0;
     }
-    if (currentline && (!selective || !interesting(currentline))) {
-        free_aline(currentline);
-        currentline = NULL;
-        wrap_offset = 0;
-    }
-    clear_more(outcount);
-    screenout(new_aline("--- Output discarded ---", 0));
+    tp(keypad ? keypad_on : keypad_off);
     return 1;
 }
 
-/* wrapline
- * Return a pointer to a static Aline containing the next physical line
- * to be printed.
+int screen_end(int need_redraw)
+{
+    Screen *screen = display_screen;
+    int oldmore = more;
+
+    hide_screen(screen);
+    if (screen->nback_filtered) {
+	screen->nback_filtered = screen->nback = 0;
+	screen->nnew_filtered = screen->nnew = 0;
+	special_var[VAR_more].val.u.ival = 0;
+
+	/* XXX optimize if (jump < screenful) (but what about tmp lines?) */
+	need_redraw = 1;
+	screen->maxbot = screen->bot = screen->pline.tail;
+	screen_refilter(screen);
+
+	special_var[VAR_more].val.u.ival = oldmore;
+    }
+
+    screen->paused = 0;
+    reset_outcount(screen);
+    if (need_redraw) {
+	redraw_window(screen, 0);
+	if (visual) {
+	    update_status_field(NULL, STAT_MORE);
+	} else {
+	    prompt = fgprompt();
+	}
+    }
+    return 1;
+}
+
+int selflush(void)
+{
+    display_screen->selflush = 1;
+    screen_refilter_bottom(display_screen);
+    clear_more(winlines());
+    return 1;
+}
+
+
+/* next_physline
+ * Increment bottom of screen.  Checks for More and SELFLUSH termination.
+ * Returns 1 if there is a displayable line, 0 if not.
  */
-static Aline *wrapline()
+static int next_physline(Screen *screen)
 {
-    int remaining;
-    static Aline *dead = NULL;
-    static Aline result;
-    /* result is not a "normal" Aline: it's static, its fields are actually
-     * pointers into the fields of another Aline, and result.str[result.len]
-     * is not neccessarily '\0'.
-     */
-
-    if (dead) { free_aline(dead); dead = NULL; }
-
-    while (!currentline || ((currentline->attrs & F_GAG) && gag)) {
-        if (currentline) free_aline(currentline);
-        if (!(currentline = dequeue(tfscreen->u.queue))) return NULL;
-        tfscreen_size--;
+    if (screen->paused)
+	return 0;
+    if (!nextbot(screen)) {
+	if (screen->selflush) {
+	    if (screen->selflush == 1) {
+		screen->selflush++;
+		screen->paused = 1;
+		update_status_field(NULL, STAT_MORE);
+	    } else {
+		screen->selflush = 0;
+		clear_screen_filter(screen);
+		screen_end(1);
+	    }
+	}
+	return 0;
     }
-    if (!check_more()) return NULL;
-
-    remaining = currentline->len - wrap_offset;
-    result.str = currentline->str + wrap_offset;
-    result.attrs = currentline->attrs;
-    result.partials = currentline->partials;
-    if (result.partials) result.partials += wrap_offset;
-    if (wrap_offset) {
-        result.attrs &= ~F_BELL;
-        if (wrapflag && wrapspace < Wrap)
-            result.attrs |= F_INDENT;
+    if (!check_more(screen)) {
+	/* undo the nextbot() */
+	if (screen->maxbot == screen->bot) {
+	    screen->maxbot = screen->maxbot->prev;
+	    screen->nnew++;
+	    screen->nnew_filtered++;
+	}
+	screen->bot = screen->bot->prev;
+	screen->nback_filtered++;
+	screen->nback++;
+	screen->viewsize--;
+	return 0;
     }
-    result.len = wraplen(result.str, remaining, wrapflag && wrap_offset);
-    wrap_offset += result.len;
-
-    if (wrap_offset == currentline->len) {
-        dead = currentline;   /* remember so we can free it next time */
-        currentline = NULL;
-        wrap_offset = 0;
-    }
-    return &result;
+    if (display_screen->viewsize > winlines())
+	nexttop(screen);
+    return 1;
 }
 
 /* returns length of prefix of str that will fit in {wrapsize} */
-int wraplen(str, len, indent)
-    CONST char *str;
-    int len;
-    int indent; /* flag */
+int wraplen(const char *str, int len, int indent)
 {
-    int total, max;
+    int total, max, visible;
 
     if (emulation == EMUL_RAW) return len;
 
-    max = (indent && wrapspace < Wrap) ? (Wrap - wrapspace) : Wrap;
+    max = Wrap - indent;
 
-#if 0
-    /* Don't count nonprinting chars or "ansi" display codes (anything
-     * starting with ESC and ending with a letter, for our purposes).
-     */
     for (visible = total = 0; total < len && visible < max; total++) {
-        if (incode) {
-            if (is_alpha(str[total])) incode = FALSE;
-        } else {
-            if (is_print(str[total]))
-                visible++;
-            incode = (str[total] == '\33');
-        }
+	if (str[total] == '\t')
+	    visible += tabsize - visible % tabsize;
+	else
+	    visible++;
     }
-#else
-    /* Nonprinting characters from server were already stripped; others will be
-     * displayed in bold-reverse notation, so should be counted.
-     */
-    total = (len < max) ? len : max;
-#endif
+
     if (total == len) return len;
     len = total;
-    if (wrapflag)
-        while (len && !is_space(str[len-1])) --len;
+    if (wrapflag) {
+        while (len && !is_space(str[len-1]))
+	    --len;
+	if (wrappunct > 0 && len < total - wrappunct) {
+	    len = total;
+	    while (len && !is_space(str[len-1]) && !is_punct(str[len-1]))
+		--len;
+	}
+    }
     return len ? len : total;
 }
 
@@ -1821,302 +3098,268 @@ int wraplen(str, len, indent)
  * Main drivers *
  ****************/
 
-/* write to tfscreen (no history) */
-void screenout(aline)
-    Aline *aline;
-{
-    if (!hilite)
-        aline->attrs &= ~F_HWRITE;
-    if (aline->attrs & F_GAG && gag)
-        return;
-    if (!output_disabled && !currentline && !tfscreen->u.queue->head) {
-        /* shortcut if screen queue is empty (a common case) */
-        (currentline = aline)->links++;
-    } else {
-        aline->links++;
-        enqueue(tfscreen->u.queue, aline);
-        tfscreen_size++;
-        oflush();
-    }
+int moresize(Screen *screen) {
+    if (!screen) screen = display_screen;
+    return screen->nback_filtered;
 }
 
-void oflush()
+/* write to display_screen (no history) */
+void screenout(conString *line)
+{
+    enscreen(display_screen, line);
+    oflush();
+}
+
+void enscreen(Screen *screen, conString *line)
+{
+    int wrapped, visible;
+
+    if (!hilite)
+        line->attrs &= ~F_HWRITE;
+    if (line->attrs & F_GAG && gag)
+        return;
+
+    if (!screen->pline.head) { /* initialize wrap state */
+	screen->scr_wrapflag = wrapflag;
+	screen->scr_wrapsize = Wrap;
+	screen->scr_wrapspace = wrapspace;
+	screen->scr_wrappunct = wrappunct;
+    }
+    visible = screen_filter(screen, line);
+    wrapped = wraplines(line, &screen->pline, visible);
+    screen->nlline++;
+    screen->npline += wrapped;
+    screen->nback += wrapped;
+    screen->nnew += wrapped;
+    if (visible) {
+	screen->nback_filtered += wrapped;
+	screen->nnew_filtered += wrapped;
+    }
+    purge_old_lines(screen);
+}
+
+void oflush(void)
 {
     static int lastsize;
-    int waspaused;
+    int waspaused, count = 0;
+    PhysLine *pl;
+    Screen *screen = display_screen;
 
     if (output_disabled) return;
 
-    if (!(waspaused = paused)) {
+    if (!(waspaused = screen->paused)) {
         lastsize = 0;
-        if (screen_mode < 1) output_novisual();
+        while (next_physline(screen)) {
+            pl = screen->bot->datum;
+            if (count++ == 0) {  /* first iteration? */
+                if (screen_mode < 1) {
+		    if (!need_refresh)
+			old_ix = ix; /* physical_refresh() will restore ix */
+                    clear_input_line();
+                } else if (scroll && has_scroll_region) {
+                    setscroll(1, out_bot);
+                    if (cy != out_bot)
+			xy(columns, out_bot);
+                }
+            }
+            if (screen_mode < 1) output_novisual(pl);
 #ifdef SCREEN
-        else if (scroll) output_scroll();
-        else output_noscroll();
+            else if (scroll) output_scroll(pl);
+            else output_noscroll(pl);
 #endif
+            set_refresh_pending(REF_PHYSICAL);
+            bufflush();
+        }
     }
 
-    if (paused) {
+    if (screen->paused) {
         if (!visual) {
             if (!waspaused) {
                 prompt = moreprompt;
+		old_ix = -1;
                 set_refresh_pending(REF_LOGICAL);
             }
-        } else if (moresize / morewait > lastsize / morewait) {
+        } else if (!waspaused ||
+	    moresize(screen) / morewait > lastsize / morewait)
+	{
             update_status_field(NULL, STAT_MORE);
-        } else if (lastsize != moresize) {
+        } else if (lastsize != moresize(screen)) {
             need_more_refresh = 1;
         }
-        lastsize = moresize;
+        lastsize = moresize(screen);
     }
 }
 
-static void output_novisual()
+static void output_novisual(PhysLine *pl)
 {
-    Aline *line;
-    int count = 0, offset;
-
-    while ((line = wrapline()) != NULL) {
-        offset = 0;
-        if (count == 0) {
-            clear_input_line();
-            set_refresh_pending(REF_PHYSICAL);
-        }
-        count++;
-        hwrite(line, offset, line->len);
-        crnl(1);  cx = 1; cy++;
-        bufflush();
-    }
+    hwrite(pl->str, pl->start, pl->len, pl->indent);
+    crnl(1);  cx = 1; cy++;
 }
 
 #ifdef SCREEN
-static void output_noscroll()
+static void output_noscroll(PhysLine *pl)
 {
-    Aline *line;
-
-    while ((line = wrapline()) != NULL) {
-        setscroll(1, lines);   /* needed after scroll_input(), etc. */
-        xy(1, (oy + 1) % (ystatus - 1) + 1);
-        clear_line();
-        xy(ox, oy);
-        set_refresh_pending(REF_PHYSICAL);
-        hwrite(line, 0, line->len);
-        oy = oy % (ystatus - 1) + 1;
-        bufflush();
-    }
+    setscroll(1, lines);   /* needed after scroll_input(), etc. */
+    xy(1, (oy + 1) % (out_bot) + 1);
+    clear_line();
+    xy(ox, oy);
+    hwrite(pl->str, pl->start, pl->len, pl->indent);
+    oy = oy % (out_bot) + 1;
 }
 
-static void output_scroll()
+static void output_scroll(PhysLine *pl)
 {
-    Aline *line;
-
-    while ((line = wrapline()) != NULL) {
-        if (has_scroll_region) {
-            setscroll(1, ystatus - 1);
-            if (cy != ystatus - 1) xy(columns, ystatus - 1);
-            crnl(1);
-            /* Some brain damaged emulators lose attributes under cursor
-             * when that '\n' is printed.  Too bad. */
-        } else {
-            xy(1, 1);
-            tp(delete_line);
-            xy(1, ystatus - 1);
-            tp(insert_line);
-        }
-        hwrite(line, 0, line->len);
-        set_refresh_pending(REF_PHYSICAL);
-        bufflush();
+    if (has_scroll_region) {
+        crnl(1);
+        /* Some brain damaged emulators lose attributes under cursor
+         * when that '\n' is printed.  Too bad. */
+    } else {
+        xy(1, 1);
+        tp(delete_line);
+        xy(1, out_bot);
+        tp(insert_line);
     }
+    hwrite(pl->str, pl->start, pl->len, pl->indent);
 }
 #endif
 
-/***********************************
- * Interfaces with rest of program *
- ***********************************/
-
-int ch_hiliteattr()
+void hide_screen(Screen *screen)
 {
-    return set_attr_var(VAR_hiliteattr, &hiliteattr);
-}
+    ListEntry *node, *next;
+    PhysLine *pl;
 
-int ch_status_attr()
-{
-    if (!set_attr_var(VAR_status_attr, &status_attr)) return 0;
-    update_status_line();
-    return 1;
-}
-
-static int set_attr_var(idx, attrp)
-    int idx;
-    attr_t *attrp;
-{
-    CONST char *str;
-    attr_t attr;
-
-    if (!(str = getstrvar(idx))) {
-        *attrp = 0;
-        return 1;
-    } else if ((attr = parse_attrs((char **)&str)) >= 0) {
-        *attrp = attr;
-        return 1;
-    } else {
-        return 0;
+    if (!screen) screen = fg_screen;
+    if (screen->viewsize > 0) {
+	/* delete any temp lines in [top,bot] */
+	int done;
+	for (done = 0, node = screen->top; !done; node = next) {
+	    done = (node == screen->bot);
+	    next = node->next;
+	    pl = node->datum;
+	    if (pl->tmp) {
+		if (screen->top == node)
+		    screen->top = node->next;
+		if (screen->bot == node)
+		    screen->bot = node->prev;
+		if (screen->maxbot == node)
+		    screen->maxbot = node->prev;
+		unlist(node, &screen->pline);
+		conStringfree(pl->str);
+		pfree(pl, plpool, str);
+		screen->viewsize--;
+		screen->npline--;
+		screen->nlline--;
+	    }
+	}
     }
 }
 
-static void set_attr(aline, dest, starting, current)
-    Aline *aline;
-    char *dest;
-    attr_t *starting, *current;
+void unhide_screen(Screen *screen)
 {
-    int i;
-    /* starting_attrs is set by the attrs parameter and/or codes at the
-     * beginning of the line.  If no visible mid-line changes occur, there is
-     * no need to allocate aline->partials (which would nearly triple the size
-     * of the aline).  Note that a trailing attribute change is considered a
-     * mid-line change; this is sub-optimal, but unprompt() depends on it
-     * (it expects prompt->attrs to be the original starting attributes).
-     */
-    if (dest == aline->str) {
-        /* start of visible line */
-        *starting = *current;
-    } else if (*starting != *current && !aline->partials) {
-        /* First mid-line attr change. */
-        aline->partials = (short*)XMALLOC(sizeof(short)*aline->len);
-        for (i = 0; i < dest - aline->str; ++i)
-            aline->partials[i] = *starting;
+    PhysLine *pl;
+
+    if (!virtscreen || !textdiv || !visual) {
+	return;
+
+    } else if (textdiv == TEXTDIV_CLEAR) {
+	clear_screen_view(screen);
+
+    } else if (textdiv_str && fg_screen->maxbot &&
+	((PhysLine*)(fg_screen->maxbot->datum))->str != textdiv_str &&
+	(textdiv == TEXTDIV_ALWAYS ||
+	    fg_screen->maxbot != fg_screen->bot || fg_screen->maxbot->next))
+	/* If textdiv is enabled and there's no divider at maxbot already... */
+    {
+	/* insert divider at maxbot */
+	palloc(pl, PhysLine, plpool, str, __FILE__, __LINE__);
+	pl->visible = 1;
+	pl->tmp = 1;
+	(pl->str = textdiv_str)->links++;
+	pl->start = 0;
+	pl->indent = 0;
+	pl->len = wraplen(textdiv_str->data, textdiv_str->len, 0);
+	inlist(pl, &fg_screen->pline, fg_screen->maxbot);
+	if (fg_screen->bot == fg_screen->maxbot) {
+	    /* insert ABOVE bot, so it doesn't look like new activity */
+	    fg_screen->bot = fg_screen->maxbot->next;
+	    if (fg_screen->viewsize == 0)
+		fg_screen->top = fg_screen->bot;
+	    fg_screen->viewsize++;
+	    if (fg_screen->viewsize >= winlines())
+		fg_screen->partialview = 0;
+	} else {
+	    /* inserting BELOW bot; we must increment nback* */
+	    fg_screen->nback++;
+	    fg_screen->nback_filtered++;
+	}
+	fg_screen->maxbot = fg_screen->maxbot->next;
+	fg_screen->npline++;
+	fg_screen->nlline++;
     }
-    if (aline->partials)
-        aline->partials[dest - aline->str] = *current;
 }
 
-#define ANSI_CSI        (char)0233    /* ANSI terminal Command Sequence Intro */
-
-/* Interpret embedded codes from a subset of ansi codes:
- * ansi attribute/color codes are converted to tf partial or line attrs;
- * all other codes are ignored.
- * (tabs and backspaces were handled in handle_socket_input())
+/*
+ * Switch to new fg_screen.
  */
-attr_t handle_ansi_attr(aline, attrs)
-    Aline *aline;
-    attr_t attrs;
+void switch_screen(int quiet)
 {
-    char *s, *t;
-    int i;
-    attr_t new;
-    attr_t starting_attrs = attrs;
-
-    for (s = t = aline->str; *s; s++) {
-        if (*s == ANSI_CSI || (s[0] == '\033' && s[1] == '[' && s++)) {
-            new = attrs;
-            if (!*s) break;            /* in case code got truncated */
-            do {
-                s++;
-                i = strtoint(&s);
-                if (!i) new = 0;
-                else if (i >= 30 && i <= 37)
-                    new = (new & ~F_FGCOLORMASK) | color2attr(i - 30);
-                else if (i >= 40 && i <= 47)
-                    new = (new & ~F_BGCOLORMASK) | color2attr(i - 40 + 16);
-                else switch (i) {
-                    case 1:   new |= F_BOLD;        break;
-                    case 4:   new |= F_UNDERLINE;   break;
-                    case 5:   new |= F_FLASH;       break;
-                    case 7:   new |= F_REVERSE;     break;
-                    case 22:  new &= ~F_BOLD;       break;
-                    case 24:  new &= ~F_UNDERLINE;  break;
-                    case 25:  new &= ~F_FLASH;      break;
-                    case 27:  new &= ~F_REVERSE;    break;
-                    default:  /* ignore it */       break;
-                }
-            } while (s[0] == ';' && s[1]);
-
-            if (!*s) break;            /* in case code got truncated */
-            if (*s == 'm') {           /* attribute command */
-                attrs = new;
-            } /* ignore any other CSI command */
-
-        } else if (is_print(*s)) {
-            set_attr(aline, t, &starting_attrs, &attrs);
-            *t++ = *s;
-
-        } else if (*s == '\07') {
-            aline->attrs |= F_BELL;
-        }
+    if (fg_screen != display_screen) {	/* !virtscreen */
+        /* move lines from fg_screen to display_screen */
+	/* XXX optimize when no filter */
+	PhysLine *pl;
+        List *dest = &display_screen->pline;
+	List *src = &fg_screen->pline;
+	while (src->head) {
+	    dest->tail->next = src->head;
+	    dest->tail = dest->tail->next;
+	    src->head = src->head->next;
+	    display_screen->nnew++;
+	    display_screen->nback++;
+	    pl = dest->tail->datum;
+	    if (screen_filter(display_screen, pl->str)) {
+		display_screen->nnew_filtered++;
+		display_screen->nback_filtered++;
+	    }
+	}
+        src->head = src->tail = NULL;
+        fg_screen->nback_filtered = fg_screen->nback = 0;
+        fg_screen->nnew_filtered = fg_screen->nnew = 0;
+        fg_screen->npline = 0;
+        fg_screen->nlline = 0;
+        fg_screen->maxbot = fg_screen->bot = fg_screen->top = NULL;
     }
-
-    *t = '\0';
-    aline->len = t - aline->str;
-    if (!aline->partials) {
-        /* No mid-line changes, so apply starting_attrs to entire line */
-        aline->attrs |= starting_attrs;
+    update_status_field(NULL, STAT_WORLD);
+    if (quiet) {
+        /* jump to end */
+	screen_end(1);
+    } else {
+	if (virtscreen) {
+	    redraw_window(display_screen, 0);
+	}
+	/* display new lines */
+	oflush();
+	update_status_field(NULL, STAT_MORE);
     }
-
-    return attrs;
 }
 
-/* Convert embedded '@' codes to internal partial or line attrs. */
-attr_t handle_inline_attr(aline, attrs)
-    Aline *aline;
-    attr_t attrs;
+#if USE_DMALLOC
+void free_output(void)
 {
-    char *s, *t, *end;
-    int off;
-    attr_t new;
-    attr_t starting_attrs = attrs;
-
-    for (s = t = aline->str; *s; s++) {
-        if (s[0] == '@' && s[1] == '{') {
-            s+=2;
-            if ((off = (*s == '~'))) s++;
-            end = strchr(s, '}');
-            if (!end) {
-                eprintf("unmatched @{");
-                return -1;
-            }
-            *end = '\0';
-            new = parse_attrs(&s);
-            *end = '}';
-            if (new < 0) return new;
-            s = end;
-            if (new & F_FGCOLOR) attrs &= ~F_FGCOLORMASK;
-            if (new & F_BGCOLOR) attrs &= ~F_BGCOLORMASK;
-            if ((new & F_EXCLUSIVE) || (new & F_NONE)) attrs &= ~F_HWRITE;
-            if (off) attrs &= ~new;
-            else attrs |= new;
-            if (new & F_BELL) aline->attrs |= F_BELL;
-
-        } else if (is_print(*s)) {
-            set_attr(aline, t, &starting_attrs, &attrs);
-            if (s[0] == '@' && s[1] == '@')
-                s++;
-            *t++ = *s;
-        }
-    }
-
-    *t = '\0';
-    aline->len = t - aline->str;
-    if (!aline->partials) {
-        /* No mid-line changes, so apply starting_attrs to entire line */
-        aline->attrs |= starting_attrs;
-    }
-
-    return attrs;
-}
-
-#ifdef DMALLOC
-void free_output()
-{
-    StatusField *f;
+    int row;
 
     tfclose(tfscreen);
+    tfclose(tfalert);
+    free_screen(default_screen);
+    fg_screen = default_screen = NULL;
     Stringfree(outbuf);
-    free_aline(moreprompt);
-    while (status_field_list->head) {
-        f = (StatusField*)unlist(status_field_list->head, status_field_list);
-        if (f->name) FREE(f->name);
-        FREE(f);
+    for (row = 0; row < max_status_height; row++) {
+	Stringfree(status_line[row]);
+	while (statusfield_list[row]->head)
+	    free_statusfield(unlist(statusfield_list[row]->head,
+		statusfield_list[row]));
     }
+
+    pfreepool(PhysLine, plpool, str);
 }
 #endif
 
